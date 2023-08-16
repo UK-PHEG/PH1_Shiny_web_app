@@ -404,6 +404,7 @@ ui <- fluidPage(
       sidebarPanel(
         selectInput('dataset', 'Select dataset', choices = sort(unique(df_plot$data_name))),
         selectInput('lifeform_pair', 'Select lifeform pair', choices = NULL),
+        selectInput('assessment_unit', 'Select assessment unit or click one on map', choices = NULL),
         # Input: Specification of range within an interval ----
         setSliderColor(c("blue", "#48B2DE", "#E57872"), c(1, 2, 3)),
         sliderInput("range_slider", "Year range for calculating time-series trend:",
@@ -522,6 +523,54 @@ server <- function(input, output, session) {
     
     output <- str_split(input$lifeform_pair, "-")[[1]]
     return(output)
+  })
+  
+  # Construct the assessment unit options selected dataset
+  observeEvent(input$dataset, {
+    debug_msg("Assessment unit options generated")
+    
+    valid_choice_labels <- unique(df_plot$assess_id[df_plot$data_name == input$dataset])
+    updateSelectInput(session, 'assessment_unit', choices = valid_choice_labels, selected = valid_choice_labels[1])
+  })
+  
+  # Observe changes in the assessment_unit dropdown and update clicked_id_map1()
+  observeEvent(input$assessment_unit, {
+    debug_msg("Assessment unit dropdown selection changed")
+    
+    # Update the clicked_id_map1 reactive value
+    clicked_id_map1(
+        input$assessment_unit
+        )  
+  })
+  
+  # Observe click events on map1 and update the dropdown selection
+  observeEvent(input$map1_shape_click, {
+    debug_msg("map1 shape click")
+    clicked_id_map1(input$map1_shape_click$id)
+    req(input$map1_shape_click$id)  # Use req() to ensure dropdown update
+    updateSelectInput(session, 'assessment_unit', selected = input$map1_shape_click$id)
+  })
+  
+  observeEvent(input$map1_marker_click, {
+    debug_msg("map1 marker click")
+    clicked_id_map1(input$map1_marker_click$id)
+    req(input$map1_marker_click$id)
+    updateSelectInput(session, 'assessment_unit', selected = input$map1_marker_click$id)
+  })
+  
+  # Observe click events on map2 and update the dropdown selection
+  observeEvent(input$map2_shape_click, {
+    debug_msg("map2 shape click")
+    clicked_id_map2(input$map2_shape_click$id)
+    req(input$map2_shape_click$id)
+    updateSelectInput(session, 'assessment_unit', selected = input$map2_shape_click$id)
+  })
+  
+  observeEvent(input$map2_marker_click, {
+    debug_msg("map2 marker click")
+    clicked_id_map2(input$map2_marker_click$id)
+    req(input$map2_marker_click$id)
+    updateSelectInput(session, 'assessment_unit', selected = input$map2_marker_click$id)
   })
   
   # Update slider input depending on the selected dataset
