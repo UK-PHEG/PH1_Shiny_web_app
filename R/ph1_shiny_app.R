@@ -49,6 +49,11 @@ stn_datasets <- paste0("(", stn_datasets, ")")
 #read the plankton data, join to the dataset ID descriptions and aggregate the station data for select datasets
 df_plot <- read_fst(path=paste0(dir_raw, "COMP4_WFD_plankton", ".fst")) %>%
   filter(n >= 1) %>%
+  filter(tconf >= 0.5) %>%
+  dplyr::select(-tconf) %>%
+  group_by(data_id, assess_id, lifeform) %>%
+  filter(length(unique(year)) >= 3) %>%
+  ungroup() %>%
   left_join(df_datasets, by="data_id") %>%
   mutate(data_name = ifelse(grepl(paste(stn_datasets,collapse="|"), data_name), 
                             gsub("\\:.*","",data_name), 
@@ -529,7 +534,15 @@ server <- function(input, output, session) {
   observeEvent(input$dataset, {
     debug_msg("Assessment unit options generated")
     
-    valid_choice_labels <- unique(df_plot$assess_id[df_plot$data_name == input$dataset])
+    temp <- df_plot %>%
+      filter(data_name == input$dataset) %>%
+      dplyr::select(assess_id) %>%
+      distinct() %>%
+      left_join(data.frame(type=shp_merged$type,
+                           assess_id=shp_merged$assess_id)) %>%
+      arrange(type, assess_id)
+    
+    valid_choice_labels <- temp$assess_id
     updateSelectInput(session, 'assessment_unit', choices = valid_choice_labels, selected = valid_choice_labels[1])
   })
   
@@ -989,7 +1002,8 @@ server <- function(input, output, session) {
   envelope <- reactive({
     debug_msg("Generate the assessment envelope")
     
-    if(!is.null(df_assessment_qc())){
+    if(!is.null(df_assessment_qc()) &
+       !is.null(lifeforms())){
     
       #generate the qc steps for assessment data
       temp <- df_assessment_qc()
@@ -1047,7 +1061,9 @@ server <- function(input, output, session) {
   df_pi <- reactive({
     debug_msg("Calculate the PI statistic")
     
-      if(!is.null(envelope()) & !is.null(df_comparison())){
+      if(!is.null(envelope()) &
+         !is.null(df_comparison()) &
+         !is.null(lifeforms())){
         
         #use qc output from envelope function to determine whether PI can be calculated
         temp_qc <- envelope()[["EnvQC"]]
@@ -1166,7 +1182,7 @@ server <- function(input, output, session) {
   # user message text to indicate the reliability of the PI
   user_prompt_text <- reactive({
     if(is.null(clicked_id_map1())){
-      output <- "Please select a map unit to generate plots"
+      output <- "Please select a map unit to generate plots or make a selection from the dropdown menu"
     } else if (!is.null(clicked_id_map1()) &
                !is.null(envelope())) {
       
