@@ -409,7 +409,8 @@ ui <- fluidPage(
       sidebarPanel(
         selectInput('dataset', 'Select dataset', choices = sort(unique(df_plot$data_name))),
         selectInput('lifeform_pair', 'Select lifeform pair', choices = NULL),
-        selectInput('assessment_unit', 'Select assessment unit or click one on map', choices = NULL),
+        selectInput('assessment_unit', 'Select assessment unit or click one on map',
+                    choices = "Please make a selection", selected = NULL),
         # Input: Specification of range within an interval ----
         setSliderColor(c("blue", "#48B2DE", "#E57872"), c(1, 2, 3)),
         sliderInput("range_slider", "Year range for calculating time-series trend:",
@@ -530,6 +531,16 @@ server <- function(input, output, session) {
     return(output)
   })
   
+  # Update assessment unit dropdown options based on the dataset
+  observe({
+    selected_id <- clicked_id_map1()
+    print(paste("Selected id = ", selected_id))
+    if (is.null(selected_id)) {
+      selected_id <- "Please make a selection"
+    }
+    updateSelectInput(session, 'assessment_unit', selected = selected_id)
+  })
+  
   # Construct the assessment unit options selected dataset
   observeEvent(input$dataset, {
     debug_msg("Assessment unit options generated")
@@ -546,22 +557,36 @@ server <- function(input, output, session) {
     updateSelectInput(session, 'assessment_unit', choices = valid_choice_labels, selected = valid_choice_labels[1])
   })
   
-  # Observe changes in the assessment_unit dropdown and update clicked_id_map1()
+  # Observe changes in the assessment_unit dropdown, update clicked_id_map1()
   observeEvent(input$assessment_unit, {
     debug_msg("Assessment unit dropdown selection changed")
     
-    # Update the clicked_id_map1 reactive value
-    clicked_id_map1(
-        input$assessment_unit
-        )  
+    if (input$assessment_unit == "Please make a selection") {
+      clicked_id_map1(NULL)
+    } else {
+      if (!identical(input$assessment_unit, "Please make a selection")) {
+        clicked_id_map1(input$assessment_unit)
+      }
+    }
   })
   
-  # Observe click events on map1 and update the dropdown selection
+  # Create separate reactive values for storing the clicked IDs for map1 and map2
+  clicked_id_map1 <- reactiveVal(NULL)
+  clicked_id_map2 <- reactiveVal(NULL)
+  
+  # Function to update both clicked_id_map1 and clicked_id_map2
+  updateClickedIDs <- function(inputId, value) {
+    clicked_id_map1(value)
+    clicked_id_map2(value)
+  }
+  
+  # Observe click events on map1 and map2
   observeEvent(input$map1_shape_click, {
     debug_msg("map1 shape click")
     clicked_id_map1(input$map1_shape_click$id)
     req(input$map1_shape_click$id)  # Use req() to ensure dropdown update
     updateSelectInput(session, 'assessment_unit', selected = input$map1_shape_click$id)
+    updateClickedIDs("map1_shape_click", input$map1_shape_click$id)
   })
   
   observeEvent(input$map1_marker_click, {
@@ -569,14 +594,15 @@ server <- function(input, output, session) {
     clicked_id_map1(input$map1_marker_click$id)
     req(input$map1_marker_click$id)
     updateSelectInput(session, 'assessment_unit', selected = input$map1_marker_click$id)
+    updateClickedIDs("map1_marker_click", input$map1_marker_click$id)
   })
   
-  # Observe click events on map2 and update the dropdown selection
   observeEvent(input$map2_shape_click, {
     debug_msg("map2 shape click")
     clicked_id_map2(input$map2_shape_click$id)
     req(input$map2_shape_click$id)
     updateSelectInput(session, 'assessment_unit', selected = input$map2_shape_click$id)
+    updateClickedIDs("map2_shape_click", input$map2_shape_click$id)
   })
   
   observeEvent(input$map2_marker_click, {
@@ -584,6 +610,22 @@ server <- function(input, output, session) {
     clicked_id_map2(input$map2_marker_click$id)
     req(input$map2_marker_click$id)
     updateSelectInput(session, 'assessment_unit', selected = input$map2_marker_click$id)
+    updateClickedIDs("map2_marker_click", input$map2_marker_click$id)
+  })
+  
+  # Observer to update clicked_id_map1() when there's only one unique assessment ID
+  observe({
+    unique_assess_ids <- unique(df_temp()$assess_id)
+    
+    if (length(unique_assess_ids) == 1) {
+      clicked_id_map1(unique_assess_ids[1])
+    }
+  })
+  
+  # Observer to reset clicked_id_map1() when dataset changes
+  observeEvent(c(input$dataset), {
+    updateClickedIDs(NULL)
+    updateSelectInput(session, 'assessment_unit', selected = "Please make a selection")
   })
   
   # Update slider input depending on the selected dataset
@@ -750,46 +792,6 @@ server <- function(input, output, session) {
     updateMap2Bounds(input$map2_bounds)
   })
   
-  # Create separate reactive values for storing the clicked IDs for map1 and map2
-  clicked_id_map1 <- reactiveVal(NULL)
-  clicked_id_map2 <- reactiveVal(NULL)
-  
-  # Function to update both clicked_id_map1 and clicked_id_map2
-  updateClickedIDs <- function(inputId, value) {
-    clicked_id_map1(value)
-    clicked_id_map2(value)
-  }
-  
-  # Observe click events on map1 and map2
-  observeEvent(input$map1_shape_click, {
-    debug_msg("map1 shape click")
-    updateClickedIDs("map1_shape_click", input$map1_shape_click$id)
-  })
-  
-  observeEvent(input$map1_marker_click, {
-    debug_msg("map1 marker click")
-    updateClickedIDs("map1_marker_click", input$map1_marker_click$id)
-  })
-  
-  observeEvent(input$map2_shape_click, {
-    debug_msg("map2 shape click")
-    updateClickedIDs("map2_shape_click", input$map2_shape_click$id)
-  })
-  
-  observeEvent(input$map2_marker_click, {
-    debug_msg("map2 marker click")
-    updateClickedIDs("map2_marker_click", input$map2_marker_click$id)
-  })
-  
-  # Observer to update clicked_id_map1() when there's only one unique assessment ID
-  observe({
-    unique_assess_ids <- unique(df_temp()$assess_id)
-    
-    if (length(unique_assess_ids) == 1) {
-      clicked_id_map1(unique_assess_ids[1])
-    }
-  })
-  
   # Create a reactive object for filtered_data
   filtered_data_reactive <- reactive({
     clicked_id <- clicked_id_map1() # Use either clicked_id_map1 or clicked_id_map2 since they are always identical
@@ -798,11 +800,6 @@ server <- function(input, output, session) {
     } else {
       NULL
     }
-  })
-  
-  # Observer to reset clicked_id_map1() when dataset changes
-  observeEvent(c(input$dataset), {
-    clicked_id_map1(NULL)
   })
   
   #function for creating labeller lookup table
