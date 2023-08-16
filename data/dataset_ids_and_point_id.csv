@@ -1,0 +1,62 @@
+cp,inst,dset,data_id,contracting_party,dataset_name,abundance_type_units,minyear,maxyear,is_point,mean_lat,mean_lon,assess_id
+BE,VLIZ,1,BE-VLIZ-1,BE-Flanders Marine Institute (VLIZ),LW_VLIZ_phyto,cells/L,2017,2020,FALSE,,,
+BE,VLIZ,2,BE-VLIZ-2,BE-Flanders Marine Institute (VLIZ),LW_VLIZ_zoo,individuals/m3,2014,2020,FALSE,,,
+DE,BSH,1,DE-BSH-1,DE-Bundesamt fur Seeschifffahrt und Hydrographie (BSH),BSH_Phyto_Zoo,number/m3 (number individuos per cubic meter),2008,2011,FALSE,,,
+DE,LLUR,1,DE-LLUR-1,"DE-Landesamt fur Landwirtschaft, Umwelt und landliche Raume des Landes Schleswig-Holstein (LLUR)",OSPAR_LLUR-SH_2010-2020,nr/m3,2010,2020,FALSE,,,
+DE,NLWKN,1,DE-NLWKN-1,"DE-Niedersachsischer Landesbetrieb fur Wasserwirtschaft, Kusten und Naturschutz (NLWKN)",OSPAR_NLWKN_1999-19_phyto,cells/l,1999,2019,TRUE,53.69704611,7.16505194,Norderney
+DK,AU,1,DK-AU-1,DK-Aarhus University (AU),"NOVANA phytoplankton:55.093867,8.576383",cells/l,2009,2009,TRUE,55.093867,8.576383,NOVANA_1
+DK,AU,2,DK-AU-2,DK-Aarhus University (AU),"NOVANA phytoplankton:55.3375,8.350667",cells/l,1990,2017,TRUE,55.3375,8.350667,NOVANA_2
+DK,AU,3,DK-AU-3,DK-Aarhus University (AU),"NOVANA phytoplankton:56.077833,8.224333",cells/l,1986,2018,TRUE,56.077833,8.224333,NOVANA_3
+DK,AU,4,DK-AU-4,DK-Aarhus University (AU),"NOVANA phytoplankton:56.1305,11.156333",cells/l,1998,2020,TRUE,56.1305,11.156333,NOVANA_4
+DK,AU,5,DK-AU-5,DK-Aarhus University (AU),"NOVANA phytoplankton:56.343333,8.210667",cells/l,1998,2010,TRUE,56.343333,8.210667,NOVANA_5
+DK,AU,6,DK-AU-6,DK-Aarhus University (AU),"NOVANA phytoplankton:56.600833,8.414833",cells/l,1985,2009,TRUE,56.600833,8.414833,NOVANA_6
+DK,AU,7,DK-AU-7,DK-Aarhus University (AU),"NOVANA phytoplankton:56.609417,10.44205",cells/l,1989,2009,TRUE,56.609417,10.44205,NOVANA_7
+DK,AU,8,DK-AU-8,DK-Aarhus University (AU),"NOVANA phytoplankton:56.620833,9.075833",cells/l,2009,2020,TRUE,56.620833,9.075833,NOVANA_8
+DK,AU,9,DK-AU-9,DK-Aarhus University (AU),"NOVANA phytoplankton:56.662667,9.973667",cells/l,1991,2020,TRUE,56.662667,9.973667,NOVANA_9
+DK,AU,10,DK-AU-10,DK-Aarhus University (AU),"NOVANA phytoplankton:56.856667,10.791667",cells/l,1998,2020,TRUE,56.856667,10.791667,NOVANA_10
+DK,AU,11,DK-AU-11,DK-Aarhus University (AU),"NOVANA phytoplankton:56.954,9.0625",cells/l,1985,2020,TRUE,56.954,9.0625,NOVANA_11
+DK,AU,12,DK-AU-12,DK-Aarhus University (AU),"NOVANA phytoplankton:57.607833,9.915333",cells/l,2011,2020,TRUE,57.607833,9.915333,NOVANA_12
+ES,IEO,1,ES-IEO-1,ES-Instituto Espanol de Oceanografia (IEO),"IEO_RADIALES_Phyto:42.142,-8.958",Cells / l,2002,2007,TRUE,42.142,-8.958,RAD_1
+ES,IEO,2,ES-IEO-2,ES-Instituto Espanol de Oceanografia (IEO),"IEO_RADIALES_Phyto:42.213,-8.85",Cells / l,2002,2007,TRUE,42.213,-8.85,RAD_2
+ES,IEO,3,ES-IEO-3,ES-Instituto Espanol de Oceanografia (IEO),"IEO_RADIALES_Phyto:43.422,-8.437",Cells / l,1989,2016,TRUE,43.422,-8.437,RAD_3
+ES,IEO,4,ES-IEO-4,ES-Instituto Espanol de Oceanografia (IEO),"IEO_RADIALES_Phyto:43.7,-6.15",Cells / l,1995,2011,TRUE,43.7,-6.15,RAD_4
+ES,IEO,5,ES-IEO-5,ES-Instituto Espanol de Oceanografia (IEO),"IEO_RADIALES_Zoo:42.213,-8.85",Indiv. / m3,1995,2006,TRUE,42.213,-8.85,RAD_5
+ES,IEO,6,ES-IEO-6,ES-Instituto Espanol de Oceanografia (IEO),"IEO_RADIALES_Zoo:43.5,-3.783",Indiv. / m3,1991,2001,TRUE,43.5,-3.783,RAD_6
+FR,CNRS,1,FR-CNRS-1,FR-Centre national de la recherche scientifique (CNRS),crns_pelagos_2006_2020,cells/l,2006,2020,FALSE,,,
+FR,IFREMER,1,FR-IFREMER-1,FR-National Institute for Ocean Science (IFREMER),Ifremer_rephy_ResoReg_FLORTOT_1992_2020,cells/L,1992,2020,FALSE,,,
+NL,RWS,1,NL-RWS-1,NL-Rijkswaterstaat (RWS),RWS_Fpzout_2000-2019_phyto,cells/l,2000,2019,FALSE,,,
+PT,IPMA,1,PT-IPMA-1,PT-Instituto Portugues do Mar e da Atmosfera (IPMA),PseudoNitzschia vs Dinophysis_IPMA,cells/L,2002,2020,FALSE,,,
+SE,SMHI,1,SE-SMHI-1,SE-Swedish Meteorological and Hydrological Institute (SMHI),National data_SMHI_Kattegat-Dnr: S/Gbg-2021_116_phyto,Hose sample cells/l,1989,2021,FALSE,,,
+SE,SMHI,2,SE-SMHI-2,SE-Swedish Meteorological and Hydrological Institute (SMHI),National data_SMHI_Kattegat-Dnr: S/Gbg-2021_116_zoo,Net sample (WP2) ind/m3,1996,2020,FALSE,,,
+SE,SMHI,3,SE-SMHI-3,SE-Swedish Meteorological and Hydrological Institute (SMHI),National data_SMHI_Skagerrak-Dnr: S/Gbg-2021_116_phyto,Hose sample cells/l,1986,2020,FALSE,,,
+SE,SMHI,4,SE-SMHI-4,SE-Swedish Meteorological and Hydrological Institute (SMHI),National data_SMHI_Skagerrak-Dnr: S/Gbg-2021_116_zoo,Net sample (WP2) ind/m3,1996,2020,FALSE,,,
+UK,AFBI,1,UK-AFBI-1,UK-Agri-Food and Biosciences Institute (AFBI),Western Irish Sea Long term monitoring,cells/litre,2015,2021,TRUE,53.78,-5.63,Western Irish Sea Long term monitoring
+UK,Cefas,1,UK-Cefas-1,"UK-Centre for Environment, Fisheries and Aquaculture Science (Cefas)","Cefas SmartBuoy Marine Observational Network - UK Waters Phytoplankton Data 2001-2019:51.25,-6.082",cell numbers per litre of water,2010,2013,TRUE,51.25,-6.082,SmartBuoy_1
+UK,Cefas,2,UK-Cefas-2,"UK-Centre for Environment, Fisheries and Aquaculture Science (Cefas)","Cefas SmartBuoy Marine Observational Network - UK Waters Phytoplankton Data 2001-2019:51.526,1.028",cell numbers per litre of water,2001,2019,TRUE,51.526,1.028,SmartBuoy_2
+UK,Cefas,3,UK-Cefas-3,"UK-Centre for Environment, Fisheries and Aquaculture Science (Cefas)","Cefas SmartBuoy Marine Observational Network - UK Waters Phytoplankton Data 2001-2019:51.9675,2.0965",cell numbers per litre of water,2003,2019,TRUE,51.9675,2.0965,SmartBuoy_3
+UK,Cefas,4,UK-Cefas-4,"UK-Centre for Environment, Fisheries and Aquaculture Science (Cefas)","Cefas SmartBuoy Marine Observational Network - UK Waters Phytoplankton Data 2001-2019:52,2.335",cell numbers per litre of water,2001,2002,TRUE,52,2.335,SmartBuoy_4
+UK,Cefas,5,UK-Cefas-5,"UK-Centre for Environment, Fisheries and Aquaculture Science (Cefas)","Cefas SmartBuoy Marine Observational Network - UK Waters Phytoplankton Data 2001-2019:53.531,1.056",cell numbers per litre of water,2010,2019,TRUE,53.531,1.056,SmartBuoy_5
+UK,Cefas,6,UK-Cefas-6,"UK-Centre for Environment, Fisheries and Aquaculture Science (Cefas)","Cefas SmartBuoy Marine Observational Network - UK Waters Phytoplankton Data 2001-2019:53.535,-3.362",cell numbers per litre of water,2002,2019,TRUE,53.535,-3.362,SmartBuoy_6
+UK,Cefas,7,UK-Cefas-7,"UK-Centre for Environment, Fisheries and Aquaculture Science (Cefas)","Cefas West Gabbard zooplankton abundance time series monitoring using ZooScan from 2016 to 2020:51.9675,2.115",numbers of individuals per cubic metre,2016,2020,TRUE,51.9675,2.115,West Gabbard
+UK,EA,1,UK-EA-1,UK-Environment Agency (EA),EA PHYTO 2000-2020,cells/litre,2000,2020,FALSE,,,
+UK,IOM,1,UK-IOM-1,UK-Isle of Man Government (IOM),"Cypris Station Phytoplankton Abundance:54.0833333333333,-4.5",Count per litre,1998,2012,TRUE,54.0833333333333,-4.5,IOM_1
+UK,IOM,2,UK-IOM-2,UK-Isle of Man Government (IOM),"Cypris Station Phytoplankton Abundance:54.0916666666667,-4.83333333333333",Count per litre,1995,2012,TRUE,54.0916666666667,-4.83333333333333,IOM_2
+UK,IOM,3,UK-IOM-3,UK-Isle of Man Government (IOM),"Cypris Station Phytoplankton Abundance:54.2,-4.38333333333333",Count per litre,2006,2012,TRUE,54.2,-4.38333333333333,IOM_3
+UK,IOM,4,UK-IOM-4,UK-Isle of Man Government (IOM),"Cypris Station Phytoplankton Abundance:54.3411666666667,-4.29116666666667",Count per litre,2006,2012,TRUE,54.3411666666667,-4.29116666666667,IOM_4
+UK,IOM,5,UK-IOM-5,UK-Isle of Man Government (IOM),"Cypris Station Phytoplankton Abundance:54.3583333333333,-4.63333333333333",Count per litre,2006,2012,TRUE,54.3583333333333,-4.63333333333333,IOM_5
+UK,MBA,1,UK-MBA-1,UK-Marine Biologicical Association (MBA),CPR dataset,ind/3m^3,1960,2019,FALSE,,,
+UK,MS,1,UK-MS-1,UK-Marine Scotland (MS),MSS Loch Ewe Phytoplankton,cells/L,2000,2020,TRUE,57.85,-5.65,Loch Ewe
+UK,MS,2,UK-MS-2,UK-Marine Scotland (MS),MSS Loch Ewe zooplankton,numbers / m3,2002,2017,TRUE,57.85,-5.65,Loch Ewe
+UK,MS,3,UK-MS-3,UK-Marine Scotland (MS),MSS Scalloway Phytoplankton dataset,cells/L,2000,2018,TRUE,60.11,-1.28,Scalloway
+UK,MS,4,UK-MS-4,UK-Marine Scotland (MS),MSS Scapa Phytoplankton dataset,cells/L,2000,2020,TRUE,58.95,-2.97,Scapa
+UK,MS,5,UK-MS-5,UK-Marine Scotland (MS),MSS Stonehaven Phytoplankton,Cells/L,2000,2020,TRUE,56.96,-2.11,Stonehaven
+UK,MS,6,UK-MS-6,UK-Marine Scotland (MS),MSS Stonehaven zooplankton,numbers / m3,1999,2020,TRUE,56.96,-2.11,Stonehaven
+UK,NRW,1,UK-NRW-1,UK-Natural Resources Wales (NRW),NRW WFD Phytoplankton classification data 2007_2019,cells/litre,2007,2019,FALSE,,,
+UK,NU,1,UK-NU-1,UK-Newcastle University (NU),Dove Time Series Ichthyoplankton zoo,Count m-3,1972,2008,TRUE,55.116667,-1.333333,Newcastle
+UK,NU,2,UK-NU-2,UK-Newcastle University (NU),Dove Time Series WP2 Microsope and FlowCam,Count m-3,1969,2008,TRUE,55.116667,-1.333333,Newcastle
+UK,NU,3,UK-NU-3,UK-Newcastle University (NU),Newcastle University Dove Time Series WP2 and Horizontal WP3,Count m-3,1969,1996,TRUE,55.116667,-1.333333,Newcastle
+UK,NU,4,UK-NU-4,UK-Newcastle University (NU),Newcastle University Dove Time Series WP2 FlowCam zoo,Count m-3,1997,2008,TRUE,55.116667,-1.333333,Newcastle
+UK,NU,5,UK-NU-5,UK-Newcastle University (NU),Newcastle University/Cefas Dove Time Series P200,count m-3,1971,2002,TRUE,55.116667,-1.333333,Newcastle
+UK,PML,1,UK-PML-1,UK-Plymouth Marine Laboratory (PML),PML_L4 phytoplankton,cells per ml,1992,2020,TRUE,50.25,-4.217,L4
+UK,PML,2,UK-PML-2,UK-Plymouth Marine Laboratory (PML),PML_L4 zooplankton,No of individuals per m3,1988,2020,TRUE,50.25,-4.217,L4
+UK,SAMS,1,UK-SAMS-1,UK-Scottish Association for Marine Science (SAMS),SAMS-LPO-Phyto-Dec2021,cells/Litre,1970,2017,TRUE,56.5,-5.5,LPO
