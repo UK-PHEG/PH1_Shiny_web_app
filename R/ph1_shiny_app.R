@@ -22,69 +22,39 @@ if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, require, character.only = TRUE)
 rm(list.of.packages, new.packages)
 
-#enter the filename of the shapefile the data is partitioned with
+#enter the filename of the multipolygon shapefile the data is partitioned with
 file_shp_part <- "COMP4_WFD.shp"
+
+#enter the filename of the point shapefile the station data is partitioned with
+file_pts_part <- "Stations.shp"
 
 #enter the main directory to use to access the processed data
 dir_raw <- "../data/"
 
-#generate a string for the directory of the shapefile
+#generate a string for the directory of the multipolygon shapefile
 dir_shp <- paste0(dir_raw, gsub(".shp","",file_shp_part), "/")
+
+#generate a string for the directory of the point shapefile
+dir_pts <- paste0(dir_raw, gsub(".shp","",file_pts_part), "/")
 
 #load the supporting functions for calculating the indicator
 source("../R/supporting_functions/PI_functions_v1.R")
 
-#load the dataset ID descriptions
-df_datasets <- read_csv(file = paste0(dir_raw, "dataset_ids_and_point_id", ".csv"), show_col_types = FALSE) %>%
-  filter(!is.na(is_point)) %>%
-  dplyr::select(data_id, contracting_party, dataset_name, mean_lat, mean_lon, abundance_type_units) %>%
-  mutate(abundance_type_units = tolower(abundance_type_units)) %>%
-  mutate(contracting_party = gsub("-", " ", contracting_party)) %>%
-  unite(data_name, c(contracting_party, dataset_name), sep=" - ")
-
-#specify station dataset acronyms to be reunited 
-stn_datasets <- c("AU", "IEO", "IOM", "SmartBuoy")
-stn_datasets <- paste0("(", stn_datasets, ")")
-
-#read the plankton data, join to the dataset ID descriptions and aggregate the station data for select datasets
-df_plot <- read_fst(path=paste0(dir_raw, "COMP4_WFD_plankton", ".fst")) %>%
-  filter(n >= 1) %>%
+#read the plankton data
+df_plot <- read_fst(path=paste0(dir_raw, "COMP4_WFD_Stations_plankton", ".fst")) %>%
   filter(tconf >= 0.5) %>%
-  dplyr::select(-tconf) %>%
   group_by(data_id, assess_id, lifeform) %>%
   filter(length(unique(year)) >= 3) %>%
-  ungroup() %>%
-  left_join(df_datasets, by="data_id") %>%
-  mutate(data_name = ifelse(grepl(paste(stn_datasets,collapse="|"), data_name), 
-                            gsub("\\:.*","",data_name), 
-                            data_name
-                            )
-         ) %>%
-  group_by(data_name, assess_id, year, month) %>%
-  mutate(unique_id = cur_group_id()) %>%
-  ungroup() %>%
-  mutate(count = log10(count + 1)) # log transform the count data
-
+  ungroup()
+  
 #load the shapefile associated with the data
-shp_part <- st_as_sf(rgdal::readOGR(paste(dir_shp, file_shp_part, sep=""))) %>%
-  rename(longname = LongName) %>%
-  mutate(is_point = FALSE) %>%
-  dplyr::select(assess_id, longname, type, is_point, geometry)
+shp_part <- st_as_sf(rgdal::readOGR(paste(dir_shp, file_shp_part, sep="")))
 
 #generate points shape file to represent the stations
-df_pts <- df_plot %>%
-  dplyr::select(assess_id, is_point, mean_lon, mean_lat) %>%
-  filter(is_point) %>%
-  distinct() %>%
-  mutate(longname = assess_id,
-         type = "stations",
-         is_point = TRUE) %>%
-  st_as_sf(coords = c("mean_lon","mean_lat"), remove = TRUE, crs=4326) %>%
-  st_transform(crs=st_crs(shp_part)) %>%
-  dplyr::select(colnames(shp_part))
+shp_pts <- st_as_sf(rgdal::readOGR(paste(dir_pts, file_pts_part, sep="")))
 
 #merge the points and polygons into a single shapefile
-shp_merged <- rbind(shp_part, df_pts)
+shp_merged <- rbind(shp_part, shp_pts)
 
 #acceptable lifeform pair combinations
 #construct a dataframe of relevant lifeform pair comparisons
@@ -110,9 +80,7 @@ generate_p_label <- function(f, add_p = TRUE){
 label_assess_id <- function(x){
   output <- lapply(
     paste0(
-      ifelse(x$longname != x$assess_id,
-             paste0(x$longname, " (", x$assess_id, "), "),
-             paste0(x$assess_id, ", ")), 
+      x$assess_id, ", ", 
       "Kendall stat: ", round(x$statistic, 2), ", ", 
       generate_p_label(x$p.value)
     ),
@@ -177,7 +145,7 @@ generate_map <- function(x, lf, legend=FALSE){
   
   #data subset for stations layer
   temp_stations <- temp %>%
-    filter(type == "stations")
+    filter(type == "Stations")
   
   #determine the layers available
   temp_layers <- unique(temp$type)
@@ -222,12 +190,12 @@ generate_map <- function(x, lf, legend=FALSE){
       )
   }
   
-  if("stations" %in% temp_layers){
+  if("Stations" %in% temp_layers){
     temp_map <- temp_map %>%
-      addMapPane("stations", zIndex = 430) %>%
+      addMapPane("Stations", zIndex = 430) %>%
       addCircleMarkers(data=temp_stations,
-                       group = "stations",
-                       options = pathOptions(pane = "stations"),
+                       group = "Stations",
+                       options = pathOptions(pane = "Stations"),
                        layerId=~assess_id,
                        color = ~pal(temp_stations$statistic),
                        label = label_assess_id(temp_stations),
@@ -290,7 +258,8 @@ plot_ts <- function(x, total_range, assessment_range, comparison_range, lf, text
     ggtitle(text_string) +
     theme_minimal() +
     theme(axis.title.x=element_blank(),
-          plot.title = element_text(hjust = 0.5))
+          plot.title = element_text(hjust = 0.5,
+                                    size = 10))
 }
 
 #function for selecting subsets of the data for assessment and comparison periods
@@ -807,13 +776,13 @@ server <- function(input, output, session) {
     
     #create labeller lookup table
     plot_label <- paste0(
-      clicked_id_map1(), ',  ',
-      'Kendall stat: ', round(x$statistic, 3), ',   ',
-      'p: ', generate_p_label(x$p.value, add_p = FALSE), ',   ',
-      'n: ', x$n, '\n',
+      clicked_id_map1(), ', ',
+      'Kendall stat: ', round(x$statistic, 3), ', ',
+      'p: ', generate_p_label(x$p.value, add_p = FALSE), '\n',
+      'n: ', x$n, ', ',
       "Sen's slope: ", 
       ifelse(!is.na(x$sens_estimate),
-                              paste0(round(x$sens_estimate), " ", units_label, "/", "year", ',  '),
+                              paste0(round(x$sens_estimate), " ", units_label, "/", "year", ', '),
                               paste0(NA)
       ),
       ifelse(!is.na(x$sens_p.value),
@@ -1106,10 +1075,10 @@ server <- function(input, output, session) {
   generate_pi_label <- function(x, y, assess_id_label){
     
     #create labeller lookup table
-    plot_label <- paste0(assess_id_label, '\n',
-                         'PI: ', round(x$PI, 3),',', '  ',
+    plot_label <- paste0(assess_id_label, ', ',
+                         'PI: ', round(x$PI, 3),'\n',
                          'assess points: ', nrow(y), ',', ' ',
-                         'comp points: ', x$newPoints, '\n',
+                         'comp points: ', x$newPoints, ',', ' ',
                          'binom-p: ', generate_p_label(x$binomial_probability, add_p = FALSE), ',', '  ',
                          'chi-sq: ', round(x$chi.sq, 3)
     )
@@ -1162,7 +1131,8 @@ server <- function(input, output, session) {
         scale_y_continuous(expand = c(0.1, 0), name = paste0("log10(",lifeforms()[2], " ", df_comp$abundance_type_units[1], ")")) +
         ggtitle(generate_pi_label(df_pi(), df_assessment_qc(), assess_id_label=clicked_id_map1())) +
         theme_minimal() +
-        theme(plot.title = element_text(hjust = 0.5)) 
+        theme(plot.title = element_text(hjust = 0.5,
+                                        size = 10)) 
       
       pi_plotly <- ggplotly(pi_plot, highlight = "unique_id", selected = list(marker = list(size = 10))) %>%
         event_register("plotly_hover")
