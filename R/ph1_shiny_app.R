@@ -219,8 +219,8 @@ generate_map <- function(x, lf, legend=FALSE){
 #slider date range function
 slider_date_range <- function(x){
   y <- c(
-    as.Date(paste(min(x), 1, 1, sep="-")),
-    as.Date(paste(max(x), 12, 31, sep="-"))
+    as.Date(paste(min(as.numeric(x)), 1, 1, sep="-")),
+    as.Date(paste(max(as.numeric(x)), 12, 31, sep="-"))
   )
   return(y)
 }
@@ -229,24 +229,24 @@ slider_date_range <- function(x){
 plot_ts <- function(x, total_range, assessment_range, comparison_range, lf, text_string) {
   
   temp <- x %>%
-    mutate(count_mon = round(count, 2)) %>%
+    mutate(count_month = round(count, 2)) %>%
     mutate(date_month = as.Date(paste(year, month, 15), "%Y %m %d"),
            date_year = as.Date(paste(year, 07, 02), "%Y %m %d")) %>%
     group_by(date_year) %>%
-    mutate(count_year = round(mean(count_mon, na.rm=T), 2)) %>%
+    mutate(count_year = round(mean(count_month, na.rm=T), 2)) %>%
     ungroup()
   
   ggplot() +
     geom_rect(aes(xmin = assessment_range[1],
                   xmax = assessment_range[2],
-                  ymin = min(temp$count_mon),
-                  ymax = max(temp$count_mon)), fill = '#48B2DE', alpha=0.2) +
+                  ymin = min(temp$count_month),
+                  ymax = max(temp$count_month)), fill = '#48B2DE', alpha=0.2) +
     geom_rect(aes(xmin = comparison_range[1],
                   xmax = comparison_range[2],
-                  ymin = min(temp$count_mon),
-                  ymax = max(temp$count_mon)), fill = '#E57872', alpha=0.2) +
-    geom_line(data = temp, aes(x = date_month, y = count_mon), colour="blue", linewidth=0.3) +
-    geom_point(data = temp, aes(x = date_month, y = count_mon),
+                  ymin = min(temp$count_month),
+                  ymax = max(temp$count_month)), fill = '#E57872', alpha=0.2) +
+    geom_line(data = temp, aes(x = date_month, y = count_month), colour="blue", linewidth=0.3) +
+    geom_point(data = temp, aes(x = date_month, y = count_month),
                shape = 21, stroke=0.1, size=0.5, fill="grey80") + 
     geom_smooth(data = temp, aes(x = date_year, y = count_year), formula = y ~ x,
                 linetype="dashed", colour="red", 
@@ -712,7 +712,7 @@ server <- function(input, output, session) {
   
   # Add a delay flag and a timer to reset it
   delay_update <- reactiveVal(FALSE)
-  delay_timer <- reactiveTimer(100)  # 100 milliseconds
+  delay_timer <- reactiveTimer(200)  # 200 milliseconds
   
   # Function to update map1 bounds (called when map1 bounds change)
   updateMap1Bounds <- function(mapBounds) {
@@ -764,7 +764,8 @@ server <- function(input, output, session) {
   # Create a reactive object for filtered_data
   filtered_data_reactive <- reactive({
     clicked_id <- clicked_id_map1() # Use either clicked_id_map1 or clicked_id_map2 since they are always identical
-    if (!is.null(clicked_id)) {
+    if (!is.null(clicked_id) &
+        !is.null(df_temp())) {
       df_temp() %>% filter(assess_id == clicked_id)
     } else {
       NULL
@@ -1205,7 +1206,7 @@ server <- function(input, output, session) {
       
     } else {
       
-      formatted_text <- paste0('<span style="color: red; font-size: 16px;">', 'ERROR', '</span>')
+      formatted_text <- paste0('<span style="color: red; font-size: 16px;">', 'Loading', '</span>')
       output <- HTML(formatted_text)
 
     }
