@@ -368,29 +368,30 @@ ui <- fluidPage(
     div(
       # Wrap sidebarPanel in a div with class "sidebar-panel"
       sidebarPanel(
-        selectInput('dataset', 'Select dataset', choices = sort(unique(df_plot$data_name))),
-        selectInput('lifeform_pair', 'Select lifeform pair', choices = NULL),
-        selectInput('assessment_unit', 'Select assessment unit or click one on map',
-                    choices = "Please make a selection", selected = NULL),
+        selectInput('dataset', 'Select dataset', choices = c("Please make a selection", unique(df_plot$data_name))),
+        selectInput('lifeform_pair', 'Select lifeform pair', choices = NULL),  # Empty initially
+        selectInput('assessment_unit', 'Select assessment unit or click one on map', choices = NULL),  # Empty initially
         # Input: Specification of range within an interval ----
         setSliderColor(c("blue", "#48B2DE", "#E57872"), c(1, 2, 3)),
         sliderInput("range_slider", "Year range for calculating time-series trend:",
-                    min = 1900, max = 2023,
-                    value = c(1900, 2023),
+                    min = 1900, max = as.numeric(format(Sys.Date(), "%Y")),
+                    value = c(1900, as.numeric(format(Sys.Date(), "%Y"))),
                     sep = "",
                     step = 1,
                     dragRange = TRUE),
         # New sliders for Assessment and Comparison
         sliderInput("assessment_slider", "Plankton Index assessment period (envelope):", 
-                    value = c(1900, 2023), 
-                    min = 1900, max = 2023,
+                    min = 1900, max = as.numeric(format(Sys.Date(), "%Y")),
+                    value = c(1900, as.numeric(format(Sys.Date(), "%Y"))),
                     sep = "",
-                    step = 1),
+                    step = 1,
+                    dragRange = TRUE),
         sliderInput("comparison_slider", "Plankton Index comparison period (points):", 
-                    value = c(1900, 2023), 
-                    min = 1900, max = 2023,
+                    min = 1900, max = as.numeric(format(Sys.Date(), "%Y")),
+                    value = c(1900, as.numeric(format(Sys.Date(), "%Y"))),
                     sep = "",
-                    step = 1),
+                    step = 1,
+                    dragRange = TRUE),
         # Add a placeholder div for the error message
         tags$div(id = "error_message", style = "color: red; font-weight: bold;"),
         
@@ -433,6 +434,21 @@ ui <- fluidPage(
 ##################################################################################################################################
 
 server <- function(input, output, session) {
+
+  # Create a reactive value to track whether a dataset has been selected
+  dataset_selected <- reactiveVal(FALSE)
+
+  # Create separate reactive values for storing the clicked IDs for map1 and map2
+  clicked_id <- reactiveVal(NULL)
+  
+  # Create a reactive value to track whether a lifeform pair is selected
+  lifeform_selected <- reactiveVal(FALSE)
+  
+  #create empty reactive vals for the filtered dataframes
+  df_dset <- reactiveVal(NULL)
+  df_dset_range <- reactiveVal(NULL)
+  df_dset_range_lf <- reactiveVal(NULL)
+  df_dset_range_lf_aid <- reactiveVal(NULL)
   
   # Function to update the error message
   updateErrorMessage <- function(message) {
@@ -469,165 +485,101 @@ server <- function(input, output, session) {
     }
   })
   
-  # Construct the lifeform pairs from the selected dataset
+  # Update the lifeform_pair and assessment_unit dropdowns when the dataset is selected
   observeEvent(input$dataset, {
     req(input$dataset)
-    debug_msg("Lifeform pair options generated")
+    debug_msg("Waiting for user to select a dataset before lifeform and assessment area options generated")
     
-    valid_choices <- do.call(paste, c(df_lf[df_lf$V1 %in% unique(df_plot$lifeform[df_plot$data_name == input$dataset]) &
+    #reset clicked mapid to NULL
+    clicked_id(NULL)
+    
+    # Reset the reactive objects for filtered_data
+    lifeform_selected(FALSE)
+    
+    # Construct valid_choices for lifeform_pair dropdown
+    lifeform_pair_choices <- do.call(paste, c(df_lf[df_lf$V1 %in% unique(df_plot$lifeform[df_plot$data_name == input$dataset]) &
                                               df_lf$V2 %in% unique(df_plot$lifeform[df_plot$data_name == input$dataset]),], sep = "-"))
     
-    if (!input$lifeform_pair %in% valid_choices) {
-      # If the current value is not one of the valid choices, set it to the first choice
-      updateSelectInput(session, 'lifeform_pair', choices = valid_choices, selected = valid_choices[1])
+    # Construct valid_choice_labels for assessment_unit dropdown
+    assessment_unit_choices <- sort(unique(df_plot$assess_id[df_plot$data_name == input$dataset]))
+    
+    # Update the lifeform_pair and assessment_unit dropdowns
+    updateSelectInput(session, 'lifeform_pair', choices = c("Please make a selection", lifeform_pair_choices))
+    updateSelectInput(session, 'assessment_unit', choices = c("Please make a selection", assessment_unit_choices))
+    
+    # Update the dataset_selected reactive value to indicate that a dataset has been selected
+    if(input$dataset != "Please make a selection"){
+      dataset_selected(TRUE)
     } else {
-      updateSelectInput(session, 'lifeform_pair', choices = valid_choices)
+      dataset_selected(FALSE)
+    }
+    
+    # Check if there's only one option available for lifeform_pair and assessment_unit
+    if (length(lifeform_pair_choices) == 1) {
+      updateSelectInput(session, 'lifeform_pair', selected = lifeform_pair_choices)
+    }
+    
+    if (length(assessment_unit_choices) == 1) {
+      updateSelectInput(session, 'assessment_unit', selected = assessment_unit_choices)
+      clicked_id(assessment_unit_choices)
+    }
+  })
+  
+
+  # Observe the dataset_selected reactive value to update the UI elements based on its value
+  observe({
+    if (dataset_selected()) {
+      shinyjs::show("lifeform_pair")
+      shinyjs::show("assessment_unit")
+    } else {
+      shinyjs::hide("lifeform_pair")
+      shinyjs::hide("assessment_unit")
+    }
+  })
+  
+  # Observe the lifeform_selected reactive value to update the UI elements based on its value
+  observe({
+    if (lifeform_selected()) {
+      shinyjs::show("map1")
+      shinyjs::show("map2")
+    } else {
+      shinyjs::hide("map1")
+      shinyjs::hide("map2")
+    }
+  })
+  
+  # Update the lifeform_selected reactive value when a lifeform pair is selected
+  observe({
+    if (!is.null(input$lifeform_pair) &
+        input$lifeform_pair != "Please make a selection") {
+      lifeform_selected(TRUE)
+    } else {
+      lifeform_selected(FALSE)
     }
   })
   
   # Split the lifeform pairs string into the two lifeforms
   lifeforms <- reactive({
-    if(!is.null(input$lifeform_pair)){
-      debug_msg("Selected lifeform pair split into lifeforms")
-      
+    if(!is.null(input$lifeform_pair) &
+      input$lifeform_pair != "Please make a selection"){
       output <- str_split(input$lifeform_pair, "-")[[1]]
+
       return(output)
     } else {
       return(NULL)
     }
   })
   
-  # Update assessment unit dropdown options based on the dataset
-  observe({
-    selected_id <- clicked_id_map1()
-    debug_msg(paste("Selected ID =", selected_id))
-    
-    if (is.null(selected_id)) {
-      selected_id <- "Please make a selection"
-    }
-    updateSelectInput(session, 'assessment_unit', selected = selected_id)
-  })
-  
-  # Construct the assessment unit options selected dataset
-  observeEvent(input$dataset, {
-    req(input$dataset)
-    debug_msg("Assessment unit options generated")
-    
-    temp <- df_plot %>%
-      filter(data_name == input$dataset) %>%
-      dplyr::select(assess_id) %>%
-      distinct() %>%
-      left_join(data.frame(type=shp_merged$type,
-                           assess_id=shp_merged$assess_id), by="assess_id") %>%
-      arrange(type, assess_id)
-    
-    valid_choice_labels <- temp$assess_id
-    updateSelectInput(session, 'assessment_unit', choices = valid_choice_labels, selected = valid_choice_labels[1])
-  })
-  
-  # Observe changes in the assessment_unit dropdown, update clicked_id_map1()
-  observeEvent(input$assessment_unit, {
-    req(input$assessment_unit)
-    debug_msg("Assessment unit dropdown selection changed")
-    
-    if (input$assessment_unit == "Please make a selection") {
-      clicked_id_map1(NULL)
-    } else {
-      if (!identical(input$assessment_unit, "Please make a selection")) {
-        clicked_id_map1(input$assessment_unit)
-      }
-    }
-  })
-  
-  # Create separate reactive values for storing the clicked IDs for map1 and map2
-  clicked_id_map1 <- reactiveVal(NULL)
-  clicked_id_map2 <- reactiveVal(NULL)
-  
-  # Function to update both clicked_id_map1 and clicked_id_map2
-  updateClickedIDs <- function(inputId, value) {
-    clicked_id_map1(value)
-    clicked_id_map2(value)
-  }
-  
-  # Observe click events on map1 and map2
-  observeEvent(input$map1_shape_click, {
-    debug_msg("map1 shape click")
-    clicked_id_map1(input$map1_shape_click$id)
-    req(input$map1_shape_click$id)  # Use req() to ensure dropdown update
-    updateSelectInput(session, 'assessment_unit', selected = input$map1_shape_click$id)
-    updateClickedIDs("map1_shape_click", input$map1_shape_click$id)
-  })
-  
-  observeEvent(input$map1_marker_click, {
-    debug_msg("map1 marker click")
-    clicked_id_map1(input$map1_marker_click$id)
-    req(input$map1_marker_click$id)
-    updateSelectInput(session, 'assessment_unit', selected = input$map1_marker_click$id)
-    updateClickedIDs("map1_marker_click", input$map1_marker_click$id)
-  })
-  
-  observeEvent(input$map2_shape_click, {
-    debug_msg("map2 shape click")
-    clicked_id_map2(input$map2_shape_click$id)
-    req(input$map2_shape_click$id)
-    updateSelectInput(session, 'assessment_unit', selected = input$map2_shape_click$id)
-    updateClickedIDs("map2_shape_click", input$map2_shape_click$id)
-  })
-  
-  observeEvent(input$map2_marker_click, {
-    debug_msg("map2 marker click")
-    clicked_id_map2(input$map2_marker_click$id)
-    req(input$map2_marker_click$id)
-    updateSelectInput(session, 'assessment_unit', selected = input$map2_marker_click$id)
-    updateClickedIDs("map2_marker_click", input$map2_marker_click$id)
-  })
-  
-  # Observer to update clicked_id_map1() when there's only one unique assessment ID
-  observe({
-    req(df_temp())
-    unique_assess_ids <- unique(df_temp()$assess_id)
-    
-    if (length(unique_assess_ids) == 1) {
-      debug_msg("Only one assessment unit")
-      clicked_id_map1(unique_assess_ids[1])
-    }
-  })
-  
-  # Observer to reset clicked_id_map1() when dataset changes
-  observeEvent(input$dataset, {
-    req(input$dataset)
-    debug_msg("Dataset changed, Clicked map id reset")
-    updateClickedIDs(NULL)
-    updateSelectInput(session, 'assessment_unit', selected = "Please make a selection")
-  })
-  
-  # Update slider input depending on the selected dataset
-  observeEvent(input$dataset, {
-    req(input$dataset)
-    debug_msg("Range slider input updated")
-    
-    updateSliderInput(session, 'range_slider',
-                      min = min(df_plot$year[df_plot$data_name == input$dataset]),
-                      max = max(df_plot$year[df_plot$data_name == input$dataset]),
-                      value = c(min(df_plot$year[df_plot$data_name == input$dataset]),
-                                max(df_plot$year[df_plot$data_name == input$dataset]))
-    )
-  })
-  
-  #filter the main dataframe by dataset, by lifeform pair, and by the year range slider 
-  df_temp <- reactive({
+  #filter the main dataframe by dataset
+  df_dset <- reactive({
     if(!is.null(input$dataset) &
-       !is.null(lifeforms()) &
-       !is.null(input$range_slider)){
+       input$dataset != "Please make a selection"){
       
-      debug_msg("Filtering on dataset input, lifeform pair input, range input")
+      debug_msg("Filtering on dataset input")
       
-      # Filter the data by dataset, lifeform pair, and year range
+      # Filter the data by dataset and lifeform pair
       df_temp_output <- df_plot %>%
-        filter(data_name == input$dataset,
-        lifeform == lifeforms()[1] | lifeform == lifeforms()[2],
-        year >= min(input$range_slider),
-        year <= max(input$range_slider))
+        filter(data_name == input$dataset)
       
       if(nrow(df_temp_output) > 0){
         
@@ -645,84 +597,128 @@ server <- function(input, output, session) {
     return(df_temp_output)
   })
   
+  # Update slider input depending on the selected dataset
+  observeEvent(input$dataset, {
+    req(df_dset())
+    debug_msg("Range slider input updated")
+    
+    updateSliderInput(session, 'range_slider',
+                      min = min(df_dset()$year),
+                      max = max(df_dset()$year),
+                      value = c(min(df_dset()$year), max(df_dset()$year))
+    )
+  })
+  
+  #filter the dataframe that has already been filtered by dataset and lifeform pair by range_slider
+  df_dset_range <- reactive({
+    if(!is.null(df_dset()) &
+       !is.null(input$range_slider)){
+      debug_msg("Filtering data by range slider")
+      
+      df_temp_output <- df_dset() %>%
+        filter(year >= min(input$range_slider),
+               year <= max(input$range_slider))
+    } else {
+      df_temp_output <- NULL
+    }
+    return(df_temp_output)
+  })
 
+  #filter the dataframe that has already been filtered by dataset by lifeform pair
+  df_dset_range_lf <- reactive({
+    if(!is.null(df_dset_range()) &
+       !is.null(lifeforms())){
+      debug_msg("Filtering data by lifeform pair")
+      
+      df_temp_output <- df_dset_range() %>%
+        filter(lifeform == lifeforms()[1] | lifeform == lifeforms()[2])
+    } else {
+      df_temp_output <- NULL
+    }
+    return(df_temp_output)
+  })
+  
+  
+  
   #Kendall trend test and Sen's slope calculation
   df_ken <- reactive({
     
-    if(!is.null(df_temp())){
+    if(!is.null(df_dset_range_lf())){
       debug_msg("Kendall trend test and Sen's slope calculations")
       
-      if(!is.null(df_temp())){
+      df_temp_output <- df_dset_range_lf() %>%
+        group_by(lifeform, assess_id, is_point, year) %>%
+        summarise(count_year = mean(count, na.rm = TRUE),
+                  n = sum(n, na.rm=T),
+                  .groups='drop') %>%
+        group_by(lifeform, assess_id) %>%
+        filter(n() >= 3) %>%
+        ungroup()
+      
+      if(nrow(df_temp_output) > 0){
         
-        df_temp_output <- df_temp() %>%
-          group_by(lifeform, assess_id, is_point, year) %>%
-          summarise(count_year = mean(count, na.rm = TRUE),
-                    n = sum(n, na.rm=T),
-                    .groups='drop') %>%
-          group_by(lifeform, assess_id) %>%
-          filter(n() >= 3) %>%
-          ungroup()
-        
-        if(nrow(df_temp_output) > 0){
-          
-          df_temp_output <- df_temp_output %>%
-            mutate(year = as.integer(year)) %>%
-            group_by(lifeform, assess_id, is_point) %>%
-            nest() %>%
-            mutate(n = map_dbl(data, ~sum(.x$n, na.rm=T))) %>%
-            mutate(fits = map(data, ~EnvStats::kendallTrendTest(count_year ~ year, ci.slope = FALSE, data = .x)),
-                   fits2 = map(fits, ~structure(.x, class = "htest")),
-                   fits3 = map(fits2, ~tidy(.x))) %>%
-            dplyr::select(-c(fits, fits2)) %>%
-            unnest(cols=c(fits3)) %>%
-            mutate(data = map(data, ~mutate(.x, count_year_lin = 10^count_year - 1))) %>% # regenerate linear count to calculate Sen's slope
-            mutate(sens_estimate = ifelse(p.value <= 0.05, 
-                              map_dbl(data, ~trend::sens.slope(.x$count_year_lin)$estimates), 
-                              NA),
-                   sens_p.value = ifelse(p.value <= 0.05, 
-                                          map_dbl(data, ~trend::sens.slope(.x$count_year)$estimates), 
-                                          NA)) %>%
-            mutate(sens_estimate = as.numeric(sens_estimate),
-                   sens_p.value = as.numeric(sens_p.value)) %>%
-            dplyr::select(lifeform, assess_id, is_point, n, statistic, p.value, sens_estimate, sens_p.value)
-          
-        } else {
-          
-          df_temp_output <- NULL
-        }
+        df_temp_output <- df_temp_output %>%
+          mutate(year = as.integer(year)) %>%
+          group_by(lifeform, assess_id, is_point) %>%
+          nest() %>%
+          mutate(n = map_dbl(data, ~sum(.x$n, na.rm=T))) %>%
+          mutate(fits = map(data, ~EnvStats::kendallTrendTest(count_year ~ year, ci.slope = FALSE, data = .x)),
+                 fits2 = map(fits, ~structure(.x, class = "htest")),
+                 fits3 = map(fits2, ~tidy(.x))) %>%
+          dplyr::select(-c(fits, fits2)) %>%
+          unnest(cols=c(fits3)) %>%
+          mutate(data = map(data, ~mutate(.x, count_year_lin = 10^count_year - 1))) %>% # regenerate linear count to calculate Sen's slope
+          mutate(sens_estimate = ifelse(p.value <= 0.05, 
+                                        map_dbl(data, ~trend::sens.slope(.x$count_year_lin)$estimates), 
+                                        NA),
+                 sens_p.value = ifelse(p.value <= 0.05, 
+                                       map_dbl(data, ~trend::sens.slope(.x$count_year)$estimates), 
+                                       NA)) %>%
+          mutate(sens_estimate = as.numeric(sens_estimate),
+                 sens_p.value = as.numeric(sens_p.value)) %>%
+          dplyr::select(lifeform, assess_id, is_point, n, statistic, p.value, sens_estimate, sens_p.value)
         
       } else {
         
         df_temp_output <- NULL
-        
       }
+      
     } else {
       
       df_temp_output <- NULL
       
     }
+    
     return(df_temp_output)
     
   })
   
   # Generate map1
   output$map1 <- renderLeaflet({
-    debug_msg("Render map1")
-    if(!is.null(df_ken())){
-      generate_map(merge(shp_merged, df_ken(), by = c("assess_id", "is_point")), lf = lifeforms()[1])
+    if (lifeform_selected() &
+        !is.null(df_ken()) &
+        !is.null(lifeforms())) {
+      debug_msg("Generating map1")
+      
+      output <- generate_map(merge(shp_merged, df_ken(), by = c("assess_id", "is_point")), lf = lifeforms()[1])
     } else {
-      NULL
+      output <- NULL
     }
+    return(output)
   })
   
   # Generate map2
   output$map2 <- renderLeaflet({
-    debug_msg("Render map2")
-    if(!is.null(df_ken())){
-      generate_map(merge(shp_merged, df_ken(), by = c("assess_id", "is_point")), lf = lifeforms()[2])
+    if (lifeform_selected() &
+        !is.null(df_ken()) &
+        !is.null(lifeforms())) {
+      debug_msg("Generating map2")
+      
+      output <- generate_map(merge(shp_merged, df_ken(), by = c("assess_id", "is_point")), lf = lifeforms()[2], legend = TRUE)
     } else {
-      NULL
+      output <- NULL
     }
+    return(output)
   })
   
   # Create reactive values to store the current bounds of both maps
@@ -780,13 +776,42 @@ server <- function(input, output, session) {
     updateMap2Bounds(input$map2_bounds)
   })
   
+  # Function to update the clicked ID
+  observeEvent(input$map1_shape_click, {
+    clicked_id(input$map1_shape_click$id)
+  })
+  observeEvent(input$map2_shape_click, {
+    clicked_id(input$map2_shape_click$id)
+  })
+  observeEvent(input$map1_marker_click, {
+    clicked_id(input$map1_marker_click$id)
+  })
+  observeEvent(input$map2_marker_click, {
+    clicked_id(input$map2_marker_click$id)
+  })
+  
+  # Update the assessment_unit dropdown when a new clicked ID is available
+  observe({
+    if (!is.null(clicked_id())) {
+      updateSelectInput(session, 'assessment_unit', selected = clicked_id())
+    }
+  })
+  
+  # Observe changes in the assessment_unit dropdown and update clicked_id()
+  observeEvent(input$assessment_unit, {
+    clicked_id(input$assessment_unit)
+  })
+  
   # Create a reactive object for filtered_data
-  filtered_data_reactive <- reactive({
-    clicked_id <- clicked_id_map1() # Use either clicked_id_map1 or clicked_id_map2 since they are always identical
-    if (!is.null(clicked_id) &
-        !is.null(df_temp())) {
-      debug_msg("Create a reactive object for the specific assessment unit")
-      df_temp() %>% filter(assess_id == clicked_id)
+  df_dset_range_lf_aid <- reactive({
+    if (!is.null(clicked_id()) &&
+        clicked_id() != "Please make a selection" &&
+        !is.null(df_dset_range_lf())) {
+        debug_msg("Create a reactive object for the specific assessment unit")
+      
+      df_dset_range_lf() %>% 
+        filter(assess_id == clicked_id())
+      
     } else {
       NULL
     }
@@ -797,101 +822,103 @@ server <- function(input, output, session) {
     
     #create labeller lookup table
     plot_label <- paste0(
-      clicked_id_map1(), ', ',
+      assess_id_label, ', ',
       'Kendall stat: ', round(x$statistic, 3), ', ',
       'p: ', generate_p_label(x$p.value, add_p = FALSE), '\n',
       'n: ', x$n, ', ',
       "Sen's slope: ", 
       ifelse(!is.na(x$sens_estimate),
-                              paste0(round(x$sens_estimate), " ", units_label, "/", "year", ', '),
-                              paste0(NA)
+             paste0(round(x$sens_estimate), " ", units_label, "/", "year", ', '),
+             paste0(NA)
       ),
       ifelse(!is.na(x$sens_p.value),
              paste0('p: ', 
                     generate_p_label(x$sens_p.value, add_p = FALSE)),
              paste0("")
-             )
       )
+    )
     return(plot_label)
   }
   
   #function for generating the two ts_plots
   generate_ts_plot <- function(x, y, lf_select){
-
-      df_subset <- x %>%
-        filter(lifeform == lf_select)
-      
-      #generate text string for plot labeling
-      temp_ken <- y %>%
-        filter(lifeform==lf_select,
-               assess_id==df_subset$assess_id[1])
-      
-      #generate plot label using custom labeller function
-      plot_label <- generate_ts_label(temp_ken, 
-                                      assess_id_label=df_subset$assess_id[1],
-                                      units_label=df_subset$abundance_type_units[1]
-      )
-      
-      #generate ts_plot using custom function
-      ts_plot <- plot_ts(df_subset,
-                         lf = lf_select,
-                         text_string = plot_label)
-      
-      # Convert ggplot to plotly with ggplotly
-      ts_plot_plotly <- ggplotly(ts_plot, highlight = "unique_id", selected = list(marker = list(size = 10)))
-      
-      return(ts_plot_plotly)
+    
+    df_subset <- x %>%
+      filter(lifeform == lf_select)
+    
+    #generate text string for plot labeling
+    temp_ken <- y %>%
+      filter(lifeform==lf_select,
+             assess_id==df_subset$assess_id[1])
+    
+    #generate plot label using custom labeller function
+    plot_label <- generate_ts_label(temp_ken, 
+                                    assess_id_label=df_subset$assess_id[1],
+                                    units_label=df_subset$abundance_type_units[1]
+    )
+    
+    #generate ts_plot using custom function
+    ts_plot <- plot_ts(df_subset,
+                       lf = lf_select,
+                       text_string = plot_label)
+    
+    # Convert ggplot to plotly with ggplotly
+    ts_plot_plotly <- ggplotly(ts_plot, highlight = "unique_id", selected = list(marker = list(size = 10)))
+    
+    return(ts_plot_plotly)
   }
   
   # Generate ts_plot1
   output$ts_plot1 <- renderPlotly({
     
-    if(!is.null(filtered_data_reactive()) &
-       !is.null(df_ken())){
+    if(!is.null(df_dset_range_lf_aid()) &
+       !is.null(df_ken()) &
+       !is.null(lifeforms())){
       debug_msg("Generate ts_plot1")
-    
-      ts_plot_plotly <- generate_ts_plot(x = filtered_data_reactive(),
+      
+      ts_plot_plotly <- generate_ts_plot(x = df_dset_range_lf_aid(),
                                          y = df_ken(),
                                          lf_select = lifeforms()[1]
-                                         )
-  
+      )
+      
       return(ts_plot_plotly)
     } else {
       return(NULL)
     }
   })
   
-  # Generate ts_plot2 
+  # Generate ts_plot2
   output$ts_plot2 <- renderPlotly({
     
-    if(!is.null(filtered_data_reactive()) &
-       !is.null(df_ken())){
+    if(!is.null(df_dset_range_lf_aid()) &
+       !is.null(df_ken()) &
+       !is.null(lifeforms())){
       debug_msg("Generate ts_plot2")
       
-      ts_plot_plotly <- generate_ts_plot(x = filtered_data_reactive(),
+      ts_plot_plotly <- generate_ts_plot(x = df_dset_range_lf_aid(),
                                          y = df_ken(),
                                          lf_select = lifeforms()[2]
-                                         )
+      )
       
       return(ts_plot_plotly)
     } else {
       return(NULL)
     }
   })
-  
+
   # Generate a histogram of sample frequency for the time-series
   output$histo_plot <- renderPlotly({
     
-    if(!is.null(filtered_data_reactive())){
+    if(!is.null(df_dset_range_lf_aid())){
       debug_msg("Generate histo_plot")
       
-      temp <- filtered_data_reactive() 
+      temp <- df_dset_range_lf_aid() 
       temp <- temp %>%
         filter(lifeform == unique(temp$lifeform)[1])
       
       histo_plot <- ggplot(temp, aes(date, n)) +
         geom_col(fill="blue") +
-        #scale_x_date(limits = c(min(temp$date), max(temp$date))) +
+        scale_x_date(limits = c(min(temp$date), max(temp$date))) +
         scale_y_continuous(name="samples/month") +
         theme_minimal() +
         theme(plot.title = element_text(hjust = 0.5),
@@ -907,11 +934,11 @@ server <- function(input, output, session) {
   })
   
   # Update Assessment and Comparison sliders based on range slider and filtered data
-  observeEvent(filtered_data_reactive(), {
+  observeEvent(df_dset_range_lf_aid(), {
     range_vals <- input$range_slider
     
     # Get the filtered data
-    filtered_data <- filtered_data_reactive()
+    filtered_data <- df_dset_range_lf_aid()
     
     if (!is.null(filtered_data) & 
         !is.null(range_vals)) {
@@ -939,12 +966,12 @@ server <- function(input, output, session) {
   
   #generate data selection for assessment period
   df_assessment <- reactive({
-    if(!is.null(filtered_data_reactive()) &
+    if(!is.null(df_dset_range_lf_aid()) &
        !is.null(input$assessment_slider) &
        !is.null(lifeforms())){
       debug_msg("Filter assessment data based on assessment slider input")
       
-      df_temp_output <- dataSelect(filtered_data_reactive(), 
+      df_temp_output <- dataSelect(df_dset_range_lf_aid(), 
                                    lims=c(min(input$assessment_slider), max(input$assessment_slider)),
                                    lf=lifeforms())
       return(df_temp_output)
@@ -955,12 +982,12 @@ server <- function(input, output, session) {
   
   #generate data selection for assessment period
   df_comparison <- reactive({
-    if(!is.null(filtered_data_reactive()) &
+    if(!is.null(df_dset_range_lf_aid()) &
        !is.null(input$comparison_slider) &
        !is.null(lifeforms())){
       debug_msg("Filter comparison data based on comparison slider input")
       
-      df_temp_output <- dataSelect(filtered_data_reactive(), 
+      df_temp_output <- dataSelect(df_dset_range_lf_aid(), 
                                    lims=c(min(input$comparison_slider), max(input$comparison_slider)),
                                    lf=lifeforms())
       return(df_temp_output)
@@ -988,7 +1015,7 @@ server <- function(input, output, session) {
        !is.null(lifeforms()) &
        !is.null(df_comparison())){
       debug_msg("Generate the assessment envelope")
-    
+      
       #generate the qc steps for assessment data
       temp <- df_assessment_qc()
       
@@ -1010,7 +1037,7 @@ server <- function(input, output, session) {
       #command to skip envelope fitting for data with no variance
       abort <- ifelse(
         temp_qc$tf[temp_qc$condition == "n_months_min_sufficient"]==FALSE |
-        sd(as.vector(unlist(temp[,2]))) == 0 |
+          sd(as.vector(unlist(temp[,2]))) == 0 |
           sd(as.vector(unlist(temp[,3])))==0 |
           all(is.na(as.vector(unlist(temp[,2])))) |
           all(is.na(as.vector(unlist(temp[,3])))), TRUE, FALSE)
@@ -1024,14 +1051,14 @@ server <- function(input, output, session) {
         envPts_unlist <- rbindlist(envPts, fill=TRUE)
         temp_outer <- data.frame(outX=envPts_unlist$outX[complete.cases(envPts_unlist$outX)],
                                  outY=envPts_unlist$outY[complete.cases(envPts_unlist$outY)]
-                                 )
+        )
         temp_inner <- data.frame(inX=envPts_unlist$inX[complete.cases(envPts_unlist$inX)],
                                  inY=envPts_unlist$inY[complete.cases(envPts_unlist$inY)]
-                                 )
+        )
       } else {
-         temp_outer <- NULL
-         temp_inner <- NULL
-       }
+        temp_outer <- NULL
+        temp_inner <- NULL
+      }
       
       output <- list(temp_outer, temp_inner, temp_combined_qc)
       names(output) <- c("EnvOuter", "EnvInner", "EnvQC")
@@ -1043,37 +1070,37 @@ server <- function(input, output, session) {
   })
   
   df_pi <- reactive({
-      if(!is.null(envelope()) &
-         !is.null(df_comparison()) &
-         !is.null(lifeforms())){
-        debug_msg("Calculate the PI statistic")
+    if(!is.null(envelope()) &
+       !is.null(df_comparison()) &
+       !is.null(lifeforms())){
+      debug_msg("Calculate the PI statistic")
+      
+      #use qc output from envelope function to determine whether PI can be calculated
+      temp_qc <- envelope()[["EnvQC"]]
+      abort <- temp_qc$tf[temp_qc$condition == "n_months_min_sufficient"]==FALSE
+      
+      if(abort == FALSE){
         
-        #use qc output from envelope function to determine whether PI can be calculated
-        temp_qc <- envelope()[["EnvQC"]]
-        abort <- temp_qc$tf[temp_qc$condition == "n_months_min_sufficient"]==FALSE
+        temp <- df_comparison()
+        compDat <- temp %>%
+          dplyr::select(all_of(lifeforms())) %>%
+          rename(y1=1, y2=2)
         
-        if(abort == FALSE){
+        env <- lapply(envelope(), function(x) x[1:2])
+        piPts <- PIcalc(compDat, env, 0.9)
+        piPts <- do.call(cbind.data.frame, piPts)
+        colnames(piPts) <- gsub(" ", "_", colnames(piPts))
         
-          temp <- df_comparison()
-          compDat <- temp %>%
-            dplyr::select(all_of(lifeforms())) %>%
-            rename(y1=1, y2=2)
-          
-          env <- lapply(envelope(), function(x) x[1:2])
-          piPts <- PIcalc(compDat, env, 0.9)
-          piPts <- do.call(cbind.data.frame, piPts)
-          colnames(piPts) <- gsub(" ", "_", colnames(piPts))
-          
-          print(piPts)  # Add a print statement here to check the value of df_pi()
-        } else {
-          
-          piPts <- "The assessment data are insufficient to calculate PI statistics."
-        }
-        
-        return(piPts)
+        print(piPts)  # Add a print statement here to check the value of df_pi()
       } else {
-        return(NULL)
+        
+        piPts <- "The assessment data are insufficient to calculate PI statistics."
       }
+      
+      return(piPts)
+    } else {
+      return(NULL)
+    }
   })
   
   # Render the text output if there is insufficient data to run the PI
@@ -1102,13 +1129,13 @@ server <- function(input, output, session) {
     
     return(plot_label)
   }
-
+  
   # generate the PI plot
   output$env_plot <- renderPlotly({
     if (!is.null(df_pi()) &
         !is.null(df_comparison()) &
-        !is.null(clicked_id_map1()) &
-         class(df_pi()) == "data.frame") {
+        !is.null(clicked_id()) &
+        class(df_pi()) == "data.frame") {
       debug_msg("Generate the PI plot")
       
       df_outer <- envelope()[["EnvOuter"]]
@@ -1118,7 +1145,7 @@ server <- function(input, output, session) {
       df_outer$subid <- 1
       df_inner$subid <- 2
       df_polys <- rbind(df_inner, df_outer)
-      df_polys$assess_id <- clicked_id_map1()
+      df_polys$assess_id <- clicked_id()
       
       df_comp <- df_comparison()
       df_comp <- df_comp %>%
@@ -1147,13 +1174,12 @@ server <- function(input, output, session) {
         scale_fill_manual(values = myColors, name = "Month") +  # Specify the fill colors and set the name for the legend
         scale_x_continuous(expand = c(0.1, 0), name = paste0("log10(",lifeforms()[1], " ", df_comp$abundance_type_units[1], ")")) +
         scale_y_continuous(expand = c(0.1, 0), name = paste0("log10(",lifeforms()[2], " ", df_comp$abundance_type_units[1], ")")) +
-        ggtitle(generate_pi_label(df_pi(), df_assessment_qc(), assess_id_label=clicked_id_map1())) +
+        ggtitle(generate_pi_label(df_pi(), df_assessment_qc(), assess_id_label=clicked_id())) +
         theme_minimal() +
         theme(plot.title = element_text(hjust = 0.5,
                                         size = 10)) 
       
-      pi_plotly <- ggplotly(pi_plot, highlight = "unique_id", selected = list(marker = list(size = 10))) %>%
-        event_register("plotly_hover")
+      pi_plotly <- ggplotly(pi_plot, highlight = "unique_id", selected = list(marker = list(size = 10)))
       
       return(pi_plotly)
       
@@ -1165,12 +1191,12 @@ server <- function(input, output, session) {
   
   # user message text to indicate the reliability of the PI
   user_prompt_text <- reactive({
-    if(is.null(clicked_id_map1())){
+    if(is.null(clicked_id())){
       output <- "Please select a map unit to generate plots or make a selection from the dropdown menu"
-    } else if (!is.null(clicked_id_map1()) &
+    } else if (!is.null(clicked_id()) &
                !is.null(envelope())) {
       
-       # generate warning text for assessment period with insufficient criteria for robust assessment
+      # generate warning text for assessment period with insufficient criteria for robust assessment
       temp_qc <- envelope()[["EnvQC"]]
       temp_qc <- temp_qc %>%
         mutate(condition_long = recode(condition,
@@ -1180,8 +1206,8 @@ server <- function(input, output, session) {
                                        n_months_rep_sufficient = "The number of times each month is represented in the assessment period does not fit the robust criteria (i.e. n < ",
                                        lf_count_min_nonzero = "The proportion of zero values in the assessment period exceeds the allowable threshold for at least one lifeform (i.e. prop nonzero > ",
                                        prop_comp_monitored_min = "The proportion of unmonitored months in the comparison period exceeds the criteria for a robust assessment (i.e. prop unmonitored > "
-                                       )
-               ) %>%
+        )
+        ) %>%
         mutate(condition_long = paste0(condition_long, criterion, ").")) %>%
         filter(tf==FALSE)
       
@@ -1222,9 +1248,9 @@ server <- function(input, output, session) {
       
     } else {
       
-      formatted_text <- paste0('<span style="color: red; font-size: 16px;">', 'Loading', '</span>')
+      formatted_text <- paste0('<span style="color: red; font-size: 16px;">', 'Waiting for user input', '</span>')
       output <- HTML(formatted_text)
-
+      
     }
     
     return(output)
@@ -1234,14 +1260,11 @@ server <- function(input, output, session) {
     user_prompt_text()
   })
   
-#########################################################################################
-# testing
-#########################################################################################
-   output$test <- renderTable({
-     
-     output <-df_ken()
-
-     
+  
+  output$test <- renderTable({
+    
+    output <- head(df_pi())
+    
     return(output)
   })
   
