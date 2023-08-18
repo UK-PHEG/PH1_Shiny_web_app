@@ -48,10 +48,12 @@ df_plot <- read_fst(path=paste0(dir_raw, "COMP4_WFD_Stations_plankton", ".fst"))
   ungroup()
   
 #load the shapefile associated with the data
-shp_part <- st_as_sf(rgdal::readOGR(paste(dir_shp, file_shp_part, sep="")))
+#shp_part <- st_as_sf(rgdal::readOGR(paste(dir_shp, file_shp_part, sep="")))
+shp_part <- st_read(paste(dir_shp, file_shp_part, sep=""))
 
 #generate points shape file to represent the stations
-shp_pts <- st_as_sf(rgdal::readOGR(paste(dir_pts, file_pts_part, sep="")))
+#shp_pts <- st_as_sf(rgdal::readOGR(paste(dir_pts, file_pts_part, sep="")))
+shp_pts <- st_read(paste(dir_pts, file_pts_part, sep=""))
 
 #merge the points and polygons into a single shapefile
 shp_merged <- rbind(shp_part, shp_pts)
