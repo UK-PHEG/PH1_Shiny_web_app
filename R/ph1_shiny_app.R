@@ -6,7 +6,7 @@ list.of.packages <- c("data.table",
                       "shiny",
                       "sf",
                       "tidyverse",
-                      "rgdal",
+                      #"rgdal",
                       "broom",
                       "dichromat",
                       "pracma",
@@ -48,11 +48,9 @@ df_plot <- read_fst(path=paste0(dir_raw, "COMP4_WFD_Stations_plankton", ".fst"))
   ungroup()
   
 #load the shapefile associated with the data
-#shp_part <- st_as_sf(rgdal::readOGR(paste(dir_shp, file_shp_part, sep="")))
 shp_part <- st_read(paste(dir_shp, file_shp_part, sep=""))
 
 #generate points shape file to represent the stations
-#shp_pts <- st_as_sf(rgdal::readOGR(paste(dir_pts, file_pts_part, sep="")))
 shp_pts <- st_read(paste(dir_pts, file_pts_part, sep=""))
 
 #merge the points and polygons into a single shapefile
@@ -228,7 +226,7 @@ slider_date_range <- function(x){
 }
 
 #time-series plotting function
-plot_ts <- function(x, lf, text_string) {
+plot_ts <- function(x, lf, assessment_range, comparison_range, text_string) {
   
   temp <- x %>%
     mutate(count_month = round(count, 2)) %>%
@@ -238,7 +236,19 @@ plot_ts <- function(x, lf, text_string) {
     mutate(count_year = round(mean(count_month, na.rm=T), 2)) %>%
     ungroup()
   
+  y_range <- range(temp$count_month)
+  a_range <- slider_date_range(assessment_range)
+  c_range <- slider_date_range(comparison_range)
+  
   ggplot() +
+    geom_rect(aes(xmin = a_range[1],
+                  xmax = a_range[2],
+                  ymin = y_range[1],
+                  ymax = y_range[2]), fill = '#48B2DE', alpha=0.2) +
+    geom_rect(aes(xmin = c_range[1],
+                  xmax = c_range[2],
+                  ymin = y_range[1],
+                  ymax = y_range[2]), fill = '#E57872', alpha=0.2) +
     geom_line(data = temp, aes(x = date_month, y = count_month), colour="blue", linewidth=0.3) +
     geom_point(data = temp, aes(x = date_month, y = count_month),
                shape = 21, stroke=0.1, size=0.5, fill="grey80") + 
@@ -248,7 +258,7 @@ plot_ts <- function(x, lf, text_string) {
     geom_line(data = temp, aes(x = date_year, y = count_year)) +
     geom_point(data = temp, aes(x = date_year, y = count_year), shape = 21, stroke=0.2, size=1.5, fill="grey80") +
     scale_y_continuous(name=paste0("log10(", lf, " ", temp$abundance_type_units[1], ")")) +
-    scale_x_date(limits = c(min(temp$date_month), max(temp$date_month))) +
+    scale_x_date(limits = slider_date_range(format(temp$date_month, "%Y"))) +
     ggtitle(text_string) +
     theme_minimal() +
     theme(axis.title.x=element_blank(),
@@ -451,6 +461,11 @@ server <- function(input, output, session) {
   df_dset_range <- reactiveVal(NULL)
   df_dset_range_lf <- reactiveVal(NULL)
   df_dset_range_lf_aid <- reactiveVal(NULL)
+  df_assessment <- reactiveVal(NULL)
+  df_comparison <- reactiveVal(NULL)
+  df_assessment_qc <- reactiveVal(NULL)
+  envelope <- reactiveVal(NULL)
+  df_pi <- reactiveVal(NULL)
   
   # Function to update the error message
   updateErrorMessage <- function(message) {
@@ -843,7 +858,7 @@ server <- function(input, output, session) {
   }
   
   #function for generating the two ts_plots
-  generate_ts_plot <- function(x, y, lf_select){
+  generate_ts_plot <- function(x, y, lf_select, assessment_range, comparison_range){
     
     df_subset <- x %>%
       filter(lifeform == lf_select)
@@ -862,6 +877,8 @@ server <- function(input, output, session) {
     #generate ts_plot using custom function
     ts_plot <- plot_ts(df_subset,
                        lf = lf_select,
+                       assessment_range = assessment_range,
+                       comparison_range = comparison_range,
                        text_string = plot_label)
     
     # Convert ggplot to plotly with ggplotly
@@ -880,7 +897,9 @@ server <- function(input, output, session) {
       
       ts_plot_plotly <- generate_ts_plot(x = df_dset_range_lf_aid(),
                                          y = df_ken(),
-                                         lf_select = lifeforms()[1]
+                                         lf_select = lifeforms()[1],
+                                         assessment_range = input$assessment_slider,
+                                         comparison_range = input$comparison_slider
       )
       
       return(ts_plot_plotly)
@@ -899,7 +918,9 @@ server <- function(input, output, session) {
       
       ts_plot_plotly <- generate_ts_plot(x = df_dset_range_lf_aid(),
                                          y = df_ken(),
-                                         lf_select = lifeforms()[2]
+                                         lf_select = lifeforms()[2],
+                                         assessment_range = input$assessment_slider,
+                                         comparison_range = input$comparison_slider
       )
       
       return(ts_plot_plotly)
@@ -1107,10 +1128,10 @@ server <- function(input, output, session) {
   
   # Render the text output if there is insufficient data to run the PI
   output$env_text <- renderText({
-    debug_msg("Generate PI diagnostic text")
-    
     if (!is.null(df_pi()) &
         class(df_pi()) == "data.frame") {
+      debug_msg("Generate PI diagnostic text")
+      
       return(NULL)  # Return NULL when df_pi() is a data frame to avoid rendering text
     } else {
       return(df_pi())  # Render the character string when df_pi() is not a data frame
