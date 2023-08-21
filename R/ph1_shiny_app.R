@@ -315,20 +315,41 @@ qc_assessment <- function(x, lf, min_months = 10, robust_months = 30, ind_years 
   }
 }
 
-#quality control steps to ensure PI results are reliable, based on comparison period data
-qc_comparison <- function(x, prop_comp = 0.25){
+#quality control steps to ensure PI results are reliable, based on comparison period data and no overlap with assessment
+qc_comparison <- function(comp, assess, prop_comp = 0.25, n_overlap = 1){
   
-  if(!is.null(x)){
+  if(!is.null(comp) &
+     !is.null(assess)){
+    
+    temp_comp <- comp %>%
+      dplyr::select(assess_id, year, month, n) %>%
+      mutate(type = "comp")
+    
+    temp_assess <- assess %>%
+      dplyr::select(assess_id, year, month, n) %>%
+      mutate(type = "assess") %>%
+      bind_rows(temp_comp) %>%
+      mutate(date = as.Date(paste(year, month, 15, sep="-"))) %>%
+      pivot_wider(names_from = type, values_from = date)
+    
+    #test to see if assessment and comparison data overlap
+    overlap_not_present <- if(min(temp_assess$assess, na.rm=T) <= max(temp_assess$comp, na.rm=T) &&
+                              min(temp_assess$comp, na.rm=T) <= max(temp_assess$assess, na.rm=T)){
+        FALSE
+      } else {
+        TRUE
+      } 
   
     #assess the comparison data to ensure it meets the criteria for generating a reliable PI calculation
-    output <- x %>%
+    output <- temp_comp %>%
       dplyr::select(assess_id, year, month, n) %>%
       mutate(prop_monitored = n()/(12*length(seq(min(year), max(year), 1)))) %>%
       mutate(prop_comp_monitored_min = ifelse(prop_monitored >= prop_comp,
                                               TRUE,FALSE)) %>%
-      rename_with(.fn = ~paste(., prop_comp, sep=":"), .cols = prop_comp_monitored_min) %>%
       dplyr::select(-prop_monitored) %>%
-      left_join(x)
+      rename_with(.fn = ~paste(., prop_comp, sep=":"), .cols = prop_comp_monitored_min) %>%
+      mutate(overlap_not_present = overlap_not_present) %>%
+      rename_with(.fn = ~paste(., n_overlap, sep=":"), .cols = overlap_not_present)
     
     return(output)
   } else {
@@ -337,7 +358,7 @@ qc_comparison <- function(x, prop_comp = 0.25){
 }
 
 #setup the quality control output
-qc_output <- function(x){
+qc_text_output <- function(x){
   
   if(!is.null(x)){
    
@@ -1040,35 +1061,35 @@ server <- function(input, output, session) {
       debug_msg("Generate the assessment envelope")
       
       #generate the qc steps for assessment data
-      temp <- df_assessment_qc()
+      temp_assess <- df_assessment_qc()
       
       #quality control steps for assessment output message
-      temp_qc <- qc_output(temp)
+      temp_assess_qc <- qc_text_output(temp_assess)
       
       #generate the qc steps for the comparison data
-      temp_comp <- qc_comparison(df_comparison())
+      temp_comp <- qc_comparison(comp = df_comparison(), assess = temp_assess)
       
       #quality control steps for the comparison output message
-      temp_comp_qc <- qc_output(temp_comp)
+      temp_comp_qc <- qc_text_output(temp_comp)
       
       #combine the assessment and comparison qc info
-      temp_combined_qc <- rbind(temp_qc, temp_comp_qc)
+      temp_combined_qc <- rbind(temp_assess_qc, temp_comp_qc)
       
-      temp <- temp %>%
+      temp_assess <- temp_assess %>%
         dplyr::select(assess_id, all_of(lifeforms()))
       
       #command to skip envelope fitting for data with no variance
       abort <- ifelse(
-        temp_qc$tf[temp_qc$condition == "n_months_min_sufficient"]==FALSE |
-          sd(as.vector(unlist(temp[,2]))) == 0 |
-          sd(as.vector(unlist(temp[,3])))==0 |
-          all(is.na(as.vector(unlist(temp[,2])))) |
-          all(is.na(as.vector(unlist(temp[,3])))), TRUE, FALSE)
+        temp_combined_qc$tf[temp_combined_qc$condition == "n_months_min_sufficient"]==FALSE |
+          sd(as.vector(unlist(temp_assess[,2]))) == 0 |
+          sd(as.vector(unlist(temp_assess[,3])))==0 |
+          all(is.na(as.vector(unlist(temp_assess[,2])))) |
+          all(is.na(as.vector(unlist(temp_assess[,3])))), TRUE, FALSE)
       
       if(abort==FALSE){
         
-        envPts <- findEvn(as.vector(unlist(temp[,2])),
-                          as.vector(unlist(temp[,3])),
+        envPts <- findEvn(as.vector(unlist(temp_assess[,2])),
+                          as.vector(unlist(temp_assess[,3])),
                           p=0.9,
                           sc=TRUE)
         envPts_unlist <- rbindlist(envPts, fill=TRUE)
@@ -1100,7 +1121,8 @@ server <- function(input, output, session) {
       
       #use qc output from envelope function to determine whether PI can be calculated
       temp_qc <- envelope()[["EnvQC"]]
-      abort <- temp_qc$tf[temp_qc$condition == "n_months_min_sufficient"]==FALSE
+      abort <- temp_qc$tf[temp_qc$condition == "n_months_min_sufficient"]==FALSE |
+        temp_qc$tf[temp_qc$condition == "overlap_not_present"]==FALSE
       
       if(abort == FALSE){
         
@@ -1117,7 +1139,7 @@ server <- function(input, output, session) {
         print(piPts)  # Add a print statement here to check the value of df_pi()
       } else {
         
-        piPts <- "The assessment data are insufficient to calculate PI statistics."
+        piPts <- "The data are insufficient or unsuitable for calculating PI statistics."
       }
       
       return(piPts)
@@ -1224,6 +1246,7 @@ server <- function(input, output, session) {
       temp_qc <- temp_qc %>%
         mutate(condition_long = recode(condition,
                                        n_months_min_sufficient = "The number of months in the assessment period does not fit the minimal criteria to generate the assessment envelope (i.e. n < ",
+                                       overlap_not_present = "The assessment and comparison periods are overlapping and an accurate PI cannot be calculated (i.e. overlapping months > ",
                                        n_months_robust_sufficient = "The number of months in the assessment period does not fit the robust criteria (i.e. n < ", 
                                        n_years_sufficient = "The number of years in the assessment period does not fit the robust criteria (i.e. n < ", 
                                        n_months_rep_sufficient = "The number of times each month is represented in the assessment period does not fit the robust criteria (i.e. n < ",
@@ -1237,10 +1260,11 @@ server <- function(input, output, session) {
       # if else statement to determine the initial sentence of the message displayed to the user
       if(nrow(temp_qc) > 0){
         
-        if("n_months_min_sufficient" %in% temp_qc$condition){
+        if("n_months_min_sufficient" %in% temp_qc$condition |
+           "overlap_not_present" %in% temp_qc$condition){
           
           # generate first part of the message to the user
-          part1 <- "The assessment data are insufficient to calculate PI statistics."
+          part1 <- "The data are insufficient or unsuitable for calculating PI statistics."
           
         } else {
           
@@ -1283,10 +1307,19 @@ server <- function(input, output, session) {
     user_prompt_text()
   })
   
+  #####################################################################################################################
+  #generate the envelope for the assessment conditions
+  test <- reactive({
+    
+    #use qc output from envelope function to determine whether PI can be calculated
+    temp_qc <- envelope()[["EnvQC"]]
+    return(temp_qc)
+    
+  })
   
   output$test <- renderTable({
     
-    output <- head(df_pi())
+    output <- test()
     
     return(output)
   })
