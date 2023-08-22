@@ -1006,22 +1006,40 @@ server <- function(input, output, session) {
       debug_msg("Assessment and comparison slider bounds updated")
       
       # Calculate the year range of the filtered data
-      filtered_year_range <- range(filtered_data$year)  # Replace 'year' with the actual variable name
+      filtered_range <- range(filtered_data$year)  # Replace 'year' with the actual variable name
       
       # Check if the filtered year range is invalid (contains -Inf and Inf)
-      if (any(!is.finite(filtered_year_range))) {
-        filtered_year_range <- range_vals
+      if (any(!is.finite(filtered_range))) {
+        filtered_range <- range_vals
       }
       
+      #calculate range values
+      min_val <- max(range_vals[1], filtered_range[1]) 
+      max_val <- min(range_vals[2], filtered_range[2])
+      
+      #logical statement for if range is over ten then assess range and comp range are 5 years
+      if(max_val - min_val >= 9){
+        assess_range_vals <- c(min_val, min_val+4)
+        comp_range_vals <- c(max_val-4, max_val)  
+      } else {
+        int_val <- (max_val - min_val) %/% 2
+        assess_range_vals <- c(min_val, min_val + int_val)
+        comp_range_vals <- c(max_val - int_val, max_val)
+      }
+      assess_range_vals
+      comp_range_vals
+
       # Set Assessment slider bounds
       updateSliderInput(session, "assessment_slider", 
-                        min = max(range_vals[1], filtered_year_range[1]), 
-                        max = min(range_vals[2], filtered_year_range[2]))
+                        value=assess_range_vals,
+                        min=min_val,
+                        max=max_val)
       
       # Set Comparison slider bounds
       updateSliderInput(session, "comparison_slider", 
-                        min = max(range_vals[1], filtered_year_range[1]), 
-                        max = min(range_vals[2], filtered_year_range[2]))
+                        value=comp_range_vals,
+                        min=min_val,
+                        max=max_val)
     }
   })
   
