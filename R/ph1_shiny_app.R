@@ -1139,7 +1139,7 @@ server <- function(input, output, session) {
         print(piPts)  # Add a print statement here to check the value of df_pi()
       } else {
         
-        piPts <- "The data are insufficient or unsuitable for calculating PI statistics."
+        piPts <- "The data are insufficient or unsuitable for calculating meaningful PI statistics."
       }
       
       return(piPts)
@@ -1264,7 +1264,7 @@ server <- function(input, output, session) {
            "overlap_not_present" %in% temp_qc$condition){
           
           # generate first part of the message to the user
-          part1 <- "The data are insufficient or unsuitable for calculating PI statistics."
+          part1 <- "The data are insufficient or unsuitable for calculating meaningful PI statistics."
           
         } else {
           
