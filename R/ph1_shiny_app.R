@@ -240,30 +240,37 @@ plot_ts <- function(x, lf, assessment_range, comparison_range, text_string) {
   a_range <- slider_date_range(assessment_range)
   c_range <- slider_date_range(comparison_range)
   
-  ggplot() +
-    geom_rect(aes(xmin = a_range[1],
-                  xmax = a_range[2],
-                  ymin = y_range[1],
-                  ymax = y_range[2]), fill = '#48B2DE', alpha=0.2) +
-    geom_rect(aes(xmin = c_range[1],
-                  xmax = c_range[2],
-                  ymin = y_range[1],
-                  ymax = y_range[2]), fill = '#E57872', alpha=0.2) +
-    geom_line(data = temp, aes(x = date_month, y = count_month), colour="blue", linewidth=0.3) +
-    geom_point(data = temp, aes(x = date_month, y = count_month),
-               shape = 21, stroke=0.1, size=0.5, fill="grey80") + 
-    geom_smooth(data = temp, aes(x = date_year, y = count_year), formula = y ~ x,
-                linetype="dashed", colour="red", 
-                method = 'lm', se = FALSE) +
-    geom_line(data = temp, aes(x = date_year, y = count_year)) +
-    geom_point(data = temp, aes(x = date_year, y = count_year), shape = 21, stroke=0.2, size=1.5, fill="grey80") +
-    scale_y_continuous(name=paste0("log10(", lf, " ", temp$abundance_type_units[1], ")")) +
-    scale_x_date(limits = slider_date_range(format(temp$date_month, "%Y"))) +
-    ggtitle(text_string) +
-    theme_minimal() +
-    theme(axis.title.x=element_blank(),
-          plot.title = element_text(hjust = 0.5,
-                                    size = 10))
+  units <- x$abundance_type_units[1]
+  
+  suppressWarnings({
+    ggplot() +
+      geom_rect(aes(xmin = a_range[1],
+                    xmax = a_range[2],
+                    ymin = y_range[1],
+                    ymax = y_range[2]), fill = '#48B2DE', alpha=0.2) +
+      geom_rect(aes(xmin = c_range[1],
+                    xmax = c_range[2],
+                    ymin = y_range[1],
+                    ymax = y_range[2]), fill = '#E57872', alpha=0.2) +
+      geom_line(data = temp, aes(x = date_month, y = count_month), colour="blue", linewidth=0.3) +
+      geom_point(data = temp, aes(x = date_month, y = count_month, text = paste0("log10(", lf, " ", units, ")", ": ", count_month, "<br>",
+                                                                                 "Month: ", format(as.Date(paste(year, month, 15, sep="-")), "%Y-%m"))),
+                 shape = 21, stroke=0.1, size=0.5, fill="blue") + 
+      geom_smooth(data = temp, aes(x = date_year, y = count_year), formula = y ~ x,
+                  linetype="dashed", colour="red", 
+                  method = 'lm', se = FALSE) +
+      geom_line(data = temp, aes(x = date_year, y = count_year)) +
+      geom_point(data = temp, aes(x = date_year, y = count_year, text = paste0("log10(", lf, " ", units, ")", ": ", count_year, "<br>",
+                                                                               "Year: ", format(as.Date(paste(year, 07, 2, sep="-")), "%Y"))),
+                 shape = 21, stroke=0.2, size=1.5, fill="grey80") +
+      scale_y_continuous(name=paste0("log10(", lf, " ", units, ")")) +
+      scale_x_date(limits = slider_date_range(format(temp$date_month, "%Y"))) +
+      ggtitle(text_string) +
+      theme_minimal() +
+      theme(axis.title.x=element_blank(),
+            plot.title = element_text(hjust = 0.5,
+                                      size = 10))
+  })
 }
 
 #function for selecting subsets of the data for assessment and comparison periods
@@ -903,7 +910,10 @@ server <- function(input, output, session) {
                        text_string = plot_label)
     
     # Convert ggplot to plotly with ggplotly
-    ts_plot_plotly <- ggplotly(ts_plot, highlight = "unique_id", selected = list(marker = list(size = 10)))
+    ts_plot_plotly <- ggplotly(
+      ts_plot,
+      tooltip = "text"  # Use the "text" aesthetic for tooltips
+    )
     
     return(ts_plot_plotly)
   }
@@ -960,15 +970,22 @@ server <- function(input, output, session) {
       temp <- temp %>%
         filter(lifeform == unique(temp$lifeform)[1])
       
-      histo_plot <- ggplot(temp, aes(date, n)) +
-        geom_col(fill="blue") +
-        scale_x_date(limits = c(min(temp$date), max(temp$date))) +
-        scale_y_continuous(name="samples/month") +
-        theme_minimal() +
-        theme(plot.title = element_text(hjust = 0.5),
-              axis.title.x = element_blank()) 
+      suppressWarnings({
+        histo_plot <- ggplot() +
+          geom_col(data=temp, aes(date, n, text = paste0("Samples: ", n, "<br>",
+                                                         "Month: ", format(date, "%Y-%m"))),
+                   fill="blue") +
+          scale_x_date(limits = c(min(temp$date), max(temp$date))) +
+          scale_y_continuous(name="samples/month") +
+          theme_minimal() +
+          theme(plot.title = element_text(hjust = 0.5),
+                axis.title.x = element_blank())
+      })
       
-      histo_plot_plotly <- ggplotly(histo_plot)
+      histo_plot_plotly <- ggplotly(
+        histo_plot,
+        tooltip = "text"  # Use the "text" aesthetic for tooltips
+      )
       return(histo_plot_plotly)
       
     } else {
@@ -1201,30 +1218,54 @@ server <- function(input, output, session) {
       
       # grouping factor for colouring months
       df_comp$month <- as.numeric(df_comp$month)
-      df_comp$season <- ifelse(df_comp$month %in% c(1, 2, 12), "12, 1, 2",
-                               ifelse(df_comp$month %in% c(3, 4, 5), "3, 4, 5",
-                                      ifelse(df_comp$month %in% c(6, 7, 8), "6, 7, 8",
-                                             ifelse(df_comp$month %in% c(9, 10, 11), "9, 10, 11", "ERROR"))))
+      df_comp$season <- ifelse(df_comp$month %in% c(1, 2, 12), "Winter",
+                               ifelse(df_comp$month %in% c(3, 4, 5), "Spring",
+                                      ifelse(df_comp$month %in% c(6, 7, 8), "Summer",
+                                             ifelse(df_comp$month %in% c(9, 10, 11), "Autumn", "ERROR"))))
       
       # Create a custom color scale
       factor_levels <- unique(df_comp$season)
       myColors <- c("blue", "green", "yellow", "red")
       names(myColors) <- levels(factor_levels)
       
-      pi_plot <- ggplot() +
-        geom_polygon(data = subset(df_polys, subid==1), aes(x, y), fill = "grey90", colour = "black", linewidth = 0.1) +
-        geom_polygon(data = subset(df_polys, subid==2), aes(x, y), fill = "white", colour = "black", linewidth = 0.1) +
-        geom_path(data = df_comp, aes(x = vx, y = vy), colour = "grey", linetype = 2, linewidth = 0.25) +
-        geom_point(data = df_comp, aes(x = vx, y = vy, fill = season), shape = 21, stroke=0.2, size=2) +
-        scale_fill_manual(values = myColors, name = "Month") +  # Specify the fill colors and set the name for the legend
-        scale_x_continuous(expand = c(0.1, 0), name = paste0("log10(",lifeforms()[1], " ", df_comp$abundance_type_units[1], ")")) +
-        scale_y_continuous(expand = c(0.1, 0), name = paste0("log10(",lifeforms()[2], " ", df_comp$abundance_type_units[1], ")")) +
-        ggtitle(generate_pi_label(df_pi(), df_assessment_qc(), assess_id_label=clicked_id())) +
-        theme_minimal() +
-        theme(plot.title = element_text(hjust = 0.5,
-                                        size = 10)) 
+      units <- df_comp$abundance_type_units[1]
       
-      pi_plotly <- ggplotly(pi_plot, highlight = "unique_id", selected = list(marker = list(size = 10)))
+      suppressWarnings({
+        pi_plot <- ggplot() +
+          geom_polygon(
+            data = subset(df_polys, subid == 1),
+            aes(x, y),  
+            fill = "grey90", colour = "black", linewidth = 0.1
+          ) +
+          geom_polygon(
+            data = subset(df_polys, subid == 2),
+            aes(x, y),  
+            fill = "white", colour = "black", linewidth = 0.1
+          ) +
+          geom_path(
+            data = df_comp,
+            aes(x = vx, y = vy),  # Customize tooltip for this layer
+            colour = "grey", linetype = 2, linewidth = 0.25
+          ) +
+          geom_point(
+            data = df_comp,
+            aes(x = vx, y = vy, fill = season, text = paste0("log10(", lifeforms()[1], " ", units, ")", ": ", vx, "<br>",
+                                                             "log10(", lifeforms()[2], " ", units, ")", ": ", vy, "<br>",
+                                                             "Month: ", format(as.Date(paste(year, month, 15, sep="-")), "%Y-%m"))),  # Customize tooltip for this layer
+            shape = 21, stroke = 0.2, size = 2
+          ) +
+          scale_fill_manual(values = myColors, name = "Season") +
+          scale_x_continuous(expand = c(0.1, 0), name = paste0("log10(", lifeforms()[1], " ", units, ")")) +
+          scale_y_continuous(expand = c(0.1, 0), name = paste0("log10(", lifeforms()[2], " ", units, ")")) +
+          ggtitle(generate_pi_label(df_pi(), df_assessment_qc(), assess_id_label = clicked_id())) +
+          theme_minimal() +
+          theme(plot.title = element_text(hjust = 0.5, size = 10))
+      })
+      
+      pi_plotly <- ggplotly(
+        pi_plot,
+        tooltip = "text"  # Use the "text" aesthetic for tooltips
+      )
       
       return(pi_plotly)
       
@@ -1319,7 +1360,7 @@ server <- function(input, output, session) {
   
   output$test <- renderTable({
     
-    output <- test()
+    output <- df_comparison()
     
     return(output)
   })
