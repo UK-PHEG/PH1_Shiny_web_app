@@ -1098,6 +1098,7 @@ server <- function(input, output, session) {
       #command to skip envelope fitting for data with no variance
       abort <- ifelse(
         temp_combined_qc$tf[temp_combined_qc$condition == "n_months_min_sufficient"]==FALSE |
+          temp_combined_qc$tf[temp_combined_qc$condition == "overlap_not_present"]==FALSE |
           sd(as.vector(unlist(temp_assess[,2]))) == 0 |
           sd(as.vector(unlist(temp_assess[,3])))==0 |
           all(is.na(as.vector(unlist(temp_assess[,2])))) |
