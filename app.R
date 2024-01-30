@@ -1,26 +1,24 @@
+# Increase the maximum upload size to 160 MB 
+options(shiny.maxRequestSize = 100*1024^2)
+
 #install and/or load the required packages
-list.of.packages <- c("data.table",
-                      "fst",
-                      "leaflet",
-                      "dplyr",
-                      "shiny",
-                      "sf",
-                      "tidyverse",
-                      #"rgdal",
-                      "broom",
-                      "dichromat",
-                      "pracma",
-                      "shinyjs",
-                      "plotly",
-                      "shinyWidgets",
-                      "trend",
-                      "scales",
-                      "EnvStats",
-                      "stringr")
-new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-if(length(new.packages)) install.packages(new.packages)
-lapply(list.of.packages, require, character.only = TRUE)
-rm(list.of.packages, new.packages)
+library("data.table")
+library("fst")
+library("leaflet")
+library("dplyr")
+library("shiny")
+library("sf")
+library("tidyverse")
+library("broom")
+library("dichromat")
+library("pracma")
+library("shinyjs")
+library("plotly")
+library("shinyWidgets")
+library("trend")
+library("scales")
+library("EnvStats")
+library("stringr")
 
 #enter the filename of the multipolygon shapefile the data is partitioned with
 file_shp_part <- "COMP4_WFD.shp"
@@ -29,7 +27,7 @@ file_shp_part <- "COMP4_WFD.shp"
 file_pts_part <- "Stations.shp"
 
 #enter the main directory to use to access the processed data
-dir_raw <- "../data/"
+dir_raw <- "data/"
 
 #generate a string for the directory of the multipolygon shapefile
 dir_shp <- paste0(dir_raw, gsub(".shp","",file_shp_part), "/")
@@ -38,7 +36,7 @@ dir_shp <- paste0(dir_raw, gsub(".shp","",file_shp_part), "/")
 dir_pts <- paste0(dir_raw, gsub(".shp","",file_pts_part), "/")
 
 #load the supporting functions for calculating the indicator
-source("../R/supporting_functions/PI_functions_v1.R")
+source("pi_functions.R")
 
 #read the plankton data
 df_plot <- read_fst(path=paste0(dir_raw, "COMP4_WFD_Stations_plankton", ".fst")) %>%
@@ -721,8 +719,7 @@ server <- function(input, output, session) {
                                        NA)) %>%
           mutate(sens_estimate = as.numeric(sens_estimate),
                  sens_p.value = as.numeric(sens_p.value)) %>%
-          dplyr::select(lifeform, assess_id, is_point, n, estimate1, p.value, sens_estimate, sens_p.value) %>%
-          dplyr::rename(statistic = estimate1)
+          dplyr::select(lifeform, assess_id, is_point, n, statistic, p.value, sens_estimate, sens_p.value)
         
       } else {
         
