@@ -719,7 +719,8 @@ server <- function(input, output, session) {
                                        NA)) %>%
           mutate(sens_estimate = as.numeric(sens_estimate),
                  sens_p.value = as.numeric(sens_p.value)) %>%
-          dplyr::select(lifeform, assess_id, is_point, n, statistic, p.value, sens_estimate, sens_p.value)
+          dplyr::select(lifeform, assess_id, is_point, n, estimate1, p.value, sens_estimate, sens_p.value) %>%
+          dplyr::rename(statistic = estimate1)
         
       } else {
         
