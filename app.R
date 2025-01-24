@@ -836,22 +836,24 @@ server <- function(input, output, session) {
       
       df_comp <- df_comparison()
       df_comp <- df_comp %>%
-        rename(vx = lifeforms()[1],
+        dplyr::rename(vx = lifeforms()[1],
                vy = lifeforms()[2]) %>%
         mutate(vx = round(vx, 2),
                vy = round(vy, 2))
       
+      seasons <- c("Winter", "Spring", "Summer", "Autumn")
+      
       # grouping factor for colouring months
       df_comp$month <- as.numeric(df_comp$month)
-      df_comp$season <- ifelse(df_comp$month %in% c(1, 2, 12), "Winter",
-                               ifelse(df_comp$month %in% c(3, 4, 5), "Spring",
-                                      ifelse(df_comp$month %in% c(6, 7, 8), "Summer",
-                                             ifelse(df_comp$month %in% c(9, 10, 11), "Autumn", "ERROR"))))
+      df_comp$season <- ifelse(df_comp$month %in% c(1, 2, 12), seasons[1],
+                               ifelse(df_comp$month %in% c(3, 4, 5), seasons[2],
+                                      ifelse(df_comp$month %in% c(6, 7, 8), seasons[3],
+                                             ifelse(df_comp$month %in% c(9, 10, 11), seasons[4], "ERROR"))))
+      df_comp$season <- factor(df_comp$season, levels=seasons)
       
       # Create a custom color scale
-      factor_levels <- unique(df_comp$season)
       myColors <- c("blue", "green", "yellow", "red")
-      names(myColors) <- levels(factor_levels)
+      names(myColors) <- seasons
       
       units <- df_comp$abundance_type_units[1]
       
@@ -874,10 +876,10 @@ server <- function(input, output, session) {
           ) +
           geom_point(
             data = df_comp,
-            aes(x = vx, y = vy, fill = season, text = paste0("log10(", lifeforms()[1], " ", units, ")", ": ", vx, "<br>",
+            aes(x = vx, y = vy, fill=season, text = paste0("log10(", lifeforms()[1], " ", units, ")", ": ", vx, "<br>",
                                                              "log10(", lifeforms()[2], " ", units, ")", ": ", vy, "<br>",
-                                                             "Month: ", format(as.Date(paste(year, month, 15, sep="-")), "%Y-%m"))),  # Customize tooltip for this layer
-            shape = 21, stroke = 0.2, size = 2
+                                                             "Month: ", format(as.Date(paste(year, month, 15, sep="-")), "%Y-%m"))),
+            stroke = 0.2, size = 2, shape = 21
           ) +
           scale_fill_manual(values = myColors, name = "Season") +
           scale_x_continuous(expand = c(0.1, 0), name = paste0("log10(", lifeforms()[1], " ", units, ")")) +
@@ -981,14 +983,31 @@ server <- function(input, output, session) {
   test <- reactive({
     
     #use qc output from envelope function to determine whether PI can be calculated
-    temp_qc <- envelope()[["EnvQC"]]
-    return(temp_qc)
+    #temp_qc <- envelope()[["EnvQC"]]
+    #return(temp_qc)
+    
+    df_comp <- df_comparison()
+    df_comp <- df_comp %>%
+      dplyr::rename(vx = lifeforms()[1],
+                    vy = lifeforms()[2]) %>%
+      mutate(vx = round(vx, 2),
+             vy = round(vy, 2))
+    
+    # grouping factor for colouring months
+    df_comp$month <- as.integer(df_comp$month)
+    df_comp$season <- ifelse(df_comp$month %in% c(1, 2, 12), "Winter",
+                             ifelse(df_comp$month %in% c(3, 4, 5), "Spring",
+                                    ifelse(df_comp$month %in% c(6, 7, 8), "Summer",
+                                           ifelse(df_comp$month %in% c(9, 10, 11), "Autumn", "ERROR"))))
+    
+    return(df_comp)
     
   })
+
   
   output$test <- renderTable({
     
-    output <- df_comparison()
+    output <- test()
     
     return(output)
   })
