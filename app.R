@@ -5,20 +5,21 @@ options(shiny.maxRequestSize = 100*1024^2)
 library("data.table")
 library("fst")
 library("leaflet")
-library("dplyr")
-library("shiny")
-library("sf")
-library("tidyverse")
-library("broom")
-library("dichromat")
-library("pracma")
-library("shinyjs")
-library("plotly")
-library("shinyWidgets")
-library("trend")
-library("scales")
-library("EnvStats")
-library("stringr")
+library(dplyr)
+library(shiny)
+library(sf)
+library(tidyverse)
+library(broom)
+library(dichromat)
+library(pracma)
+library(shinyjs)
+library(plotly)
+library(shinyWidgets)
+library(trend)
+library(scales)
+library(EnvStats)
+library(stringr)
+library(reactable)
 
 #enter the filename of the multipolygon shapefile the data is partitioned with
 file_shp_part <- "COMP4_WFD.shp"
@@ -76,6 +77,8 @@ ui <- fluidPage(
   useShinyjs(),  # Enable shinyjs features
   
   titlePanel("PH1/FW5 Explorer"),
+  
+  downloadButton("downloadData", "Download the data"),
   
   # Add a text output to display test data
   #tableOutput("test"),
@@ -902,6 +905,43 @@ server <- function(input, output, session) {
     }
   })
   
+  #select the correct subset of data to download and transform this data to report results as linear
+  output_data <- reactive({
+
+      if(!is.null(df_dset_range_lf_aid())){
+        
+        output_temp <- df_dset_range_lf_aid()
+        
+      } else if (is.null(df_dset_range_lf_aid()) &
+                 !is.null(df_dset_range_lf())){
+        
+        output_temp <- df_dset_range_lf()
+        
+      } else if (is.null(df_dset_range_lf()) &
+                 !is.null(df_dset_range())){
+        
+        output_temp <- df_dset_range()
+        
+      } else if (is.null(df_dset_range()) &
+                 !is.null(df_dset())){
+        
+        output_temp <- df_dset()
+        
+      }
+  
+        output <- output_temp %>%
+          mutate(count = (10^count) - 1)
+    
+    return(output)
+  })
+  
+  output$downloadData <- downloadHandler(
+    filename = "ph1_indicator_results.csv",
+    content = function(file) {
+      write.csv(output_data(), file, row.names = FALSE) 
+    }
+  )
+  
   # user message text to indicate the reliability of the PI
   user_prompt_text <- reactive({
     if(is.null(clicked_id())){
@@ -1007,7 +1047,7 @@ server <- function(input, output, session) {
   
   output$test <- renderTable({
     
-    output <- test()
+    output <- df_dset_range_lf_aid()
     
     return(output)
   })
