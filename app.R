@@ -42,6 +42,9 @@ source("pi_functions.R")
 #load the supporting functions for everything else
 source("app_functions.R")
 
+#load the code to specify slider colour, since this feature has been deprecated and now needs to be done manually
+source("setSliderColor.R")
+
 #read the plankton data
 df_plot <- read_fst(path=paste0(dir_raw, "COMP4_WFD_Stations_plankton", ".fst")) %>%
   filter(tconf >= 0.5) %>%
