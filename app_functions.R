@@ -189,11 +189,11 @@ generate_map <- function(x, lf, legend=FALSE){
   # set max zoom for when only one station to preserve geographic context
   if(length(unique(temp$assess_id)) == 1){
     temp_map <- temp_map %>%
-      addProviderTiles(providers$CartoDB.PositronNoLabels,
+      addProviderTiles(providers$OpenStreetMap,
                        options = providerTileOptions(maxZoom = 5))
   } else {
     temp_map <- temp_map %>%
-      addProviderTiles(providers$CartoDB.PositronNoLabels)
+      addProviderTiles(providers$OpenStreetMap)
   }
   
   if("COMP4" %in% temp_layers){
